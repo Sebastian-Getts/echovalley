@@ -1,18 +1,14 @@
 // app.ts
 App<IAppOption>({
-  globalData: {},
+  globalData: {
+    language: 'en' // 默认英文
+  } as any,
   onLaunch() {
-    // 展示本地存储能力
-    const logs = wx.getStorageSync('logs') || []
-    logs.unshift(Date.now())
-    wx.setStorageSync('logs', logs)
-
-    // 登录
-    wx.login({
-      success: res => {
-        console.log(res.code)
-        // 发送 res.code 到后台换取 openId, sessionKey, unionId
-      },
-    })
+    // 应用启动时的初始化逻辑
+    // 登录状态检查在各页面的onLoad中进行
+    
+    // 从本地存储读取语言设置
+    const savedLanguage = wx.getStorageSync('language') || 'en'
+    ;(this.globalData as any).language = savedLanguage
   },
 })

@@ -1,0 +1,25 @@
+<!--about.wxml-->
+<view class="about-container">
+  <view class="content">
+    <view class="app-info">
+      <view class="app-name">{{appName}}</view>
+      <view class="app-tagline">{{lang.tagline}}</view>
+    </view>
+
+    <view class="info-section">
+      <view class="section-title">{{lang.introduction}}</view>
+      <view class="section-content">{{lang.introductionText}}</view>
+    </view>
+
+    <view class="info-section">
+      <view class="section-title">{{lang.features}}</view>
+      <view class="feature-item" wx:for="{{featuresList}}" wx:key="index">• {{item}}</view>
+    </view>
+
+    <view class="info-section">
+      <view class="section-title">{{lang.version}}</view>
+      <view class="version-info">{{lang.version}} {{version}} ({{lang.initialRelease}})</view>
+    </view>
+  </view>
+</view>
+

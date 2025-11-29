@@ -1,11 +1,37 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/logs/logs"
+    "pages/login/login",
+    "pages/practice/practice",
+    "pages/exam/exam",
+    "pages/profile/profile",
+    "pages/about/about",
+    "pages/settings/settings"
   ],
   "window": {
+    "navigationBarTitleText": "桂园听说",
     "navigationBarTextStyle": "black",
-    "navigationStyle": "custom"
+    "navigationBarBackgroundColor": "#fff",
+    "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#667eea",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/practice/practice",
+        "text": "Practice"
+      },
+      {
+        "pagePath": "pages/exam/exam",
+        "text": "Exam"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "Profile"
+      }
+    ]
   },
   "style": "v2",
   "rendererOptions": {

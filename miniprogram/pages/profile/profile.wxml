@@ -1,0 +1,51 @@
+<!--profile.wxml-->
+<view class="profile-container">
+  <view class="content">
+    <view class="user-info">
+      <view class="user-icon">👤</view>
+      <view class="user-detail">
+        <view class="user-label">{{lang.username}}</view>
+        <view class="username">{{username}}</view>
+      </view>
+    </view>
+
+    <view class="modules-section">
+      <view class="section-title">{{lang.study}}</view>
+      <view class="modules-list">
+        <view 
+          class="module-item"
+          wx:for="{{businessModules}}"
+          wx:key="id"
+          data-module="{{item}}"
+          bindtap="onModuleTap"
+        >
+          <view class="module-icon">{{item.icon}}</view>
+          <view class="module-title">{{item.title}}</view>
+          <view class="module-arrow">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="modules-section">
+      <view class="section-title">{{lang.system}}</view>
+      <view class="modules-list">
+        <view 
+          class="module-item"
+          wx:for="{{systemModules}}"
+          wx:key="id"
+          data-module="{{item}}"
+          bindtap="onModuleTap"
+        >
+          <view class="module-icon">{{item.icon}}</view>
+          <view class="module-title">{{item.title}}</view>
+          <view class="module-arrow">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="logout-section">
+      <button class="logout-button" bindtap="onLogout">{{lang.logout}}</button>
+    </view>
+  </view>
+</view>
+

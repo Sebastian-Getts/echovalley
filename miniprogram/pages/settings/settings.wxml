@@ -1,0 +1,29 @@
+<!--settings.wxml-->
+<view class="settings-container">
+  <view class="content">
+    <view class="setting-section">
+      <view class="section-title">{{lang.language}}</view>
+      <view class="setting-item">
+        <view class="setting-label">{{lang.selectLanguage}}</view>
+        <radio-group class="radio-group" bindchange="onLanguageChange">
+          <label class="radio-label">
+            <radio value="en" checked="{{language === 'en'}}" color="#667eea" />
+            <text class="radio-text">English</text>
+          </label>
+          <label class="radio-label">
+            <radio value="zh" checked="{{language === 'zh'}}" color="#667eea" />
+            <text class="radio-text">中文</text>
+          </label>
+        </radio-group>
+      </view>
+    </view>
+
+    <view class="setting-section">
+      <view class="section-title">{{lang.currentLanguage}}</view>
+      <view class="language-info">
+        <text class="language-text">{{language === 'zh' ? '中文' : 'English'}}</text>
+      </view>
+    </view>
+  </view>
+</view>
+

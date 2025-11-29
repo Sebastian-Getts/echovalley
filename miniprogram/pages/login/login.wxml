@@ -1,0 +1,32 @@
+<!--login.wxml-->
+<view class="login-container">
+  <view class="login-box">
+    <view class="title">{{lang.welcome}}</view>
+    <view class="subtitle">{{lang.subtitle}}</view>
+    
+    <view class="input-group">
+      <view class="input-label">{{lang.username}}</view>
+      <input 
+        class="input-field" 
+        type="text" 
+        placeholder="{{lang.usernamePlaceholder}}"
+        value="{{username}}"
+        bindinput="onUsernameInput"
+      />
+    </view>
+
+    <view class="input-group">
+      <view class="input-label">{{lang.password}}</view>
+      <input 
+        class="input-field" 
+        type="password" 
+        placeholder="{{lang.passwordPlaceholder}}"
+        value="{{password}}"
+        bindinput="onPasswordInput"
+      />
+    </view>
+
+    <button class="login-button" bindtap="onLogin">{{lang.loginButton}}</button>
+  </view>
+</view>
+

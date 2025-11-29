@@ -1,0 +1,38 @@
+<!--exam.wxml-->
+<view class="exam-container">
+  
+  <view class="sections-list">
+    <view 
+      class="section-item" 
+      wx:for="{{sections}}" 
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onSectionTap"
+    >
+      <view class="section-header">
+        <view class="section-icon">{{item.icon}}</view>
+        <view class="section-info">
+          <view class="section-title">{{item.title}}</view>
+          <view class="section-count">{{item.count}} {{setsAvailableText}}</view>
+        </view>
+        <view class="section-arrow {{item.expanded ? 'expanded' : ''}}">▼</view>
+      </view>
+      
+      <view class="section-content {{item.expanded ? 'expanded' : ''}}" wx:if="{{item.expanded}}">
+        <view 
+          class="content-item"
+          wx:for="{{item.items}}"
+          wx:for-item="contentItem"
+          wx:for-index="itemIndex"
+          wx:key="*this"
+          data-section-id="{{item.id}}"
+          data-item-index="{{itemIndex}}"
+          catchtap="onItemTap"
+        >
+          {{contentItem}}
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+

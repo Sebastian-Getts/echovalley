@@ -1,0 +1,20 @@
+<!--practice.wxml-->
+<view class="practice-container">
+  <view class="modules-list">
+    <view 
+      class="module-item" 
+      wx:for="{{modules}}" 
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onModuleTap"
+    >
+      <view class="module-icon">{{item.icon}}</view>
+      <view class="module-content">
+        <view class="module-title">{{item.title}}</view>
+        <view class="module-count">{{item.count}} {{setsAvailableText}}</view>
+      </view>
+      <view class="module-arrow">›</view>
+    </view>
+  </view>
+</view>
+
