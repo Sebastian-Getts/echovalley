@@ -1,10 +1,13 @@
 // exam.ts
 import { getTranslation } from '../../utils/i18n'
+import { getExamCategories, getExamList } from '../../utils/api'
 
 Page({
   data: {
     sections: [] as any[],
-    setsAvailableText: ''
+    setsAvailableText: '',
+    lang: {} as any,
+    loading: false
   },
 
   onLoad() {
@@ -21,7 +24,7 @@ Page({
   },
 
   onShow() {
-    // 每次显示时重新加载语言
+    // 每次显示时重新加载语言和数据
     this.loadLanguage()
   },
 
@@ -29,111 +32,8 @@ Page({
     const language = wx.getStorageSync('language') || 'en'
     const lang = getTranslation(language)
     
-    const sections = [
-      {
-        id: 1,
-        title: lang.exam.unitTest,
-        icon: '📚',
-        count: 12,
-        expanded: false,
-        items: language === 'zh' ? [
-          '第1单元测试',
-          '第2单元测试',
-          '第3单元测试',
-          '第4单元测试',
-          '第5单元测试',
-          '第6单元测试',
-          '第7单元测试',
-          '第8单元测试',
-          '第9单元测试',
-          '第10单元测试',
-          '第11单元测试',
-          '第12单元测试'
-        ] : [
-          'Unit 1 Test',
-          'Unit 2 Test',
-          'Unit 3 Test',
-          'Unit 4 Test',
-          'Unit 5 Test',
-          'Unit 6 Test',
-          'Unit 7 Test',
-          'Unit 8 Test',
-          'Unit 9 Test',
-          'Unit 10 Test',
-          'Unit 11 Test',
-          'Unit 12 Test'
-        ]
-      },
-      {
-        id: 2,
-        title: lang.exam.stageTest,
-        icon: '📊',
-        count: 8,
-        expanded: false,
-        items: language === 'zh' ? [
-          '第一阶段测试',
-          '第二阶段测试',
-          '第三阶段测试',
-          '第四阶段测试',
-          '第五阶段测试',
-          '第六阶段测试',
-          '第七阶段测试',
-          '第八阶段测试'
-        ] : [
-          'Stage 1 Test',
-          'Stage 2 Test',
-          'Stage 3 Test',
-          'Stage 4 Test',
-          'Stage 5 Test',
-          'Stage 6 Test',
-          'Stage 7 Test',
-          'Stage 8 Test'
-        ]
-      },
-      {
-        id: 3,
-        title: lang.exam.mockExam,
-        icon: '🎯',
-        count: 15,
-        expanded: false,
-        items: language === 'zh' ? [
-          '7年级(上) 模拟试题1',
-          '7年级(上) 模拟试题2',
-          '7年级(上) 模拟试题3',
-          '7年级(下) 模拟试题1',
-          '7年级(下) 模拟试题2',
-          '7年级(下) 模拟试题3',
-          '8年级(上) 模拟试题1',
-          '8年级(上) 模拟试题2',
-          '8年级(上) 模拟试题3',
-          '8年级(下) 模拟试题1',
-          '8年级(下) 模拟试题2',
-          '8年级(下) 模拟试题3',
-          '9年级(上) 模拟试题1',
-          '9年级(上) 模拟试题2',
-          '9年级(上) 模拟试题3'
-        ] : [
-          'Grade 7 (1st Semester) Mock Test 1',
-          'Grade 7 (1st Semester) Mock Test 2',
-          'Grade 7 (1st Semester) Mock Test 3',
-          'Grade 7 (2nd Semester) Mock Test 1',
-          'Grade 7 (2nd Semester) Mock Test 2',
-          'Grade 7 (2nd Semester) Mock Test 3',
-          'Grade 8 (1st Semester) Mock Test 1',
-          'Grade 8 (1st Semester) Mock Test 2',
-          'Grade 8 (1st Semester) Mock Test 3',
-          'Grade 8 (2nd Semester) Mock Test 1',
-          'Grade 8 (2nd Semester) Mock Test 2',
-          'Grade 8 (2nd Semester) Mock Test 3',
-          'Grade 9 (1st Semester) Mock Test 1',
-          'Grade 9 (1st Semester) Mock Test 2',
-          'Grade 9 (1st Semester) Mock Test 3'
-        ]
-      }
-    ]
-
     this.setData({
-      sections,
+      lang: lang.exam,
       setsAvailableText: lang.exam.setsAvailable
     })
     
@@ -141,18 +41,152 @@ Page({
     wx.setNavigationBarTitle({
       title: lang.exam.title
     })
+    
+    // 从API加载考试分类数据
+    this.loadExamCategories()
+  },
+
+  loadExamCategories() {
+    // 显示加载提示
+    const language = wx.getStorageSync('language') || 'en'
+    const loadingText = language === 'zh' ? '加载中...' : 'Loading...'
+    wx.showLoading({
+      title: loadingText,
+      mask: true
+    })
+    
+    this.setData({ loading: true })
+    
+    getExamCategories()
+      .then((categories) => {
+        // 映射分类数据，设置图标和展开状态
+        const categoryIcons: Record<string, string> = {
+          'unit_test': '📚',
+          'stage_test': '📊',
+          'mock_exam': '🎯'
+        }
+        
+        const mappedCategories = categories.map((category) => ({
+          id: category.id,
+          title: category.title,
+          icon: category.icon || categoryIcons[category.category_type] || '📝',
+          count: category.count,
+          category_type: category.category_type,
+          expanded: false,
+          items: [] as Array<{ id: number; title: string }>, // 初始为空，点击展开时加载
+          loading: false
+        }))
+        
+        this.setData({
+          sections: mappedCategories,
+          loading: false
+        })
+        
+        wx.hideLoading()
+      })
+      .catch((error) => {
+        console.error('Load exam categories error:', error)
+        wx.hideLoading()
+        this.setData({ loading: false })
+        
+        // API调用失败，显示错误提示
+        const language = wx.getStorageSync('language') || 'en'
+        const errorMessage = language === 'zh' 
+          ? '加载考试分类失败，请稍后重试' 
+          : 'Failed to load exam categories, please try again later'
+        
+        wx.showToast({
+          title: errorMessage,
+          icon: 'none',
+          duration: 2000
+        })
+        
+        // 设置空数组，不显示任何分类
+        this.setData({
+          sections: []
+        })
+      })
+  },
+
+  loadExamListForCategory(categoryId: number, categoryType: string) {
+    // 标记该分类正在加载
+    const sections = this.data.sections.map(section => {
+      if (section.id === categoryId) {
+        return { ...section, loading: true }
+      }
+      return section
+    })
+    this.setData({ sections })
+    
+    getExamList({
+      category_id: categoryId,
+      category_type: categoryType
+    })
+      .then((examList) => {
+        // 更新对应分类的items，保存exam的id和title
+        const updatedSections = this.data.sections.map(section => {
+          if (section.id === categoryId) {
+            return {
+              ...section,
+              items: examList.map(exam => ({ id: exam.id, title: exam.title })),
+              loading: false
+            }
+          }
+          return section
+        })
+        
+        this.setData({
+          sections: updatedSections
+        })
+      })
+      .catch((error) => {
+        console.error('Load exam list error:', error)
+        
+        // 加载失败，取消loading状态
+        const sections = this.data.sections.map(section => {
+          if (section.id === categoryId) {
+            return { ...section, loading: false }
+          }
+          return section
+        })
+        this.setData({ sections })
+        
+        const language = wx.getStorageSync('language') || 'en'
+        const errorMessage = language === 'zh' 
+          ? '加载考试列表失败，请稍后重试' 
+          : 'Failed to load exam list, please try again later'
+        
+        wx.showToast({
+          title: errorMessage,
+          icon: 'none',
+          duration: 2000
+        })
+      })
   },
 
   onSectionTap(e: any) {
     const sectionId = e.currentTarget.dataset.id
-    const sections = this.data.sections.map(section => {
-      if (section.id === sectionId) {
+    const section = this.data.sections.find(s => s.id === sectionId)
+    
+    if (!section) return
+    
+    const language = wx.getStorageSync('language') || 'en'
+    const lang = getTranslation(language)
+    
+    // 切换展开状态
+    const sections = this.data.sections.map(s => {
+      if (s.id === sectionId) {
+        const newExpanded = !s.expanded
+        // 如果展开且items为空，则加载考试列表
+        if (newExpanded && s.items.length === 0) {
+          this.loadExamListForCategory(sectionId, s.category_type)
+        }
         return {
-          ...section,
-          expanded: !section.expanded
+          ...s,
+          expanded: newExpanded
         }
       }
-      return section
+      return s
     })
     
     this.setData({
@@ -166,13 +200,20 @@ Page({
     const section = this.data.sections.find(s => s.id === sectionId)
     
     if (section && section.items[itemIndex]) {
+      const examItem = section.items[itemIndex]
+      const examId = examItem.id || examItem // 兼容字符串或对象格式
+      const examTitle = typeof examItem === 'string' ? examItem : examItem.title
+      
       const language = wx.getStorageSync('language') || 'en'
       const enterText = language === 'zh' ? '进入' : 'Enter'
       wx.showToast({
-        title: `${enterText} ${section.items[itemIndex]}`,
+        title: `${enterText} ${examTitle}`,
         icon: 'none'
       })
-      // 这里后续可以跳转到具体的考试页面
+      // TODO: 这里后续可以跳转到具体的考试页面，传递exam_id等参数
+      // wx.navigateTo({
+      //   url: `/pages/exam-detail/exam-detail?exam_id=${examId}`
+      // })
     }
   }
 })

@@ -2,6 +2,7 @@
   "pages": [
     "pages/login/login",
     "pages/practice/practice",
+    "pages/practice-questions/practice-questions",
     "pages/exam/exam",
     "pages/profile/profile",
     "pages/about/about",

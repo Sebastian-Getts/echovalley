@@ -24,12 +24,12 @@
           wx:for="{{item.items}}"
           wx:for-item="contentItem"
           wx:for-index="itemIndex"
-          wx:key="*this"
+          wx:key="id"
           data-section-id="{{item.id}}"
           data-item-index="{{itemIndex}}"
           catchtap="onItemTap"
         >
-          {{contentItem}}
+          {{contentItem.title || contentItem}}
         </view>
       </view>
     </view>

@@ -1,0 +1,52 @@
+<!--practice-questions.wxml-->
+<view class="practice-questions-container">
+  <!-- 搜索框 -->
+  <view class="search-container">
+    <view class="search-box">
+      <input 
+        class="search-input" 
+        type="text" 
+        placeholder="{{lang.searchPlaceholder}}"
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+        confirm-type="search"
+      />
+      <view class="search-icon" wx:if="{{searchKeyword}}" bindtap="onSearchClear">
+        ✕
+      </view>
+    </view>
+  </view>
+
+  <!-- 题目列表 -->
+  <view class="questions-list">
+    <view 
+      class="question-item" 
+      wx:for="{{questions}}" 
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onQuestionTap"
+    >
+      <view class="question-content">
+        <view class="question-title">{{item.title}}</view>
+        <view class="question-meta">
+          <text class="question-type">{{item.typeText || item.type}}</text>
+          <text class="question-difficulty">{{lang.difficulty}}: {{item.difficultyText || item.difficulty}}</text>
+        </view>
+      </view>
+      <view class="question-arrow">›</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && questions.length === 0}}">
+      <view class="empty-icon">📚</view>
+      <view class="empty-text">{{lang.noQuestions}}</view>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="loading-state" wx:if="{{loading && questions.length === 0}}">
+      <view class="loading-text">{{lang.loading}}</view>
+    </view>
+  </view>
+</view>
+

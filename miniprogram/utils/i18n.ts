@@ -21,7 +21,11 @@ export const translations = {
       listeningComprehension: 'Listening Comprehension',
       qaPractice: 'Q&A Practice',
       passageRetelling: 'Passage Retelling',
-      setsAvailable: 'sets available'
+      setsAvailable: 'sets available',
+      searchPlaceholder: 'Search questions...',
+      noQuestions: 'No questions found',
+      loading: 'Loading...',
+      difficulty: 'Difficulty'
     },
     exam: {
       title: 'Exam',
@@ -96,7 +100,11 @@ export const translations = {
       listeningComprehension: '听选信息',
       qaPractice: '回答问题',
       passageRetelling: '短文复述及提问',
-      setsAvailable: '套题'
+      setsAvailable: '套题',
+      searchPlaceholder: '搜索题目...',
+      noQuestions: '暂无题目',
+      loading: '加载中...',
+      difficulty: '难度'
     },
     exam: {
       title: '考试',
