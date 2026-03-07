@@ -68,23 +68,33 @@
   line-height: 1.5;
 }
 
-.question-meta {
+.question-difficulty-container {
   display: flex;
   align-items: center;
-  gap: 20rpx;
 }
 
-.question-type {
-  font-size: 24rpx;
-  color: #667eea;
-  background-color: #f0f2ff;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+.difficulty-stars {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
 }
 
-.question-difficulty {
-  font-size: 24rpx;
-  color: #999;
+.star {
+  font-size: 28rpx;
+  line-height: 1;
+  display: inline-block;
+}
+
+.star-filled {
+  color: #FFD700;
+  text-shadow: 
+    0 0 3rpx rgba(255, 215, 0, 0.6),
+    0 0 6rpx rgba(255, 165, 0, 0.4),
+    0 1rpx 2rpx rgba(255, 140, 0, 0.3);
+}
+
+.star-empty {
+  color: #e0e0e0;
 }
 
 .question-arrow {

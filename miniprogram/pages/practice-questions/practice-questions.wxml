@@ -29,9 +29,16 @@
     >
       <view class="question-content">
         <view class="question-title">{{item.title}}</view>
-        <view class="question-meta">
-          <text class="question-type">{{item.typeText || item.type}}</text>
-          <text class="question-difficulty">{{lang.difficulty}}: {{item.difficultyText || item.difficulty}}</text>
+        <view class="question-difficulty-container">
+          <view class="difficulty-stars">
+            <text 
+              wx:for="{{item.stars}}" 
+              wx:for-item="isFilled"
+              wx:for-index="starIndex"
+              wx:key="starIndex"
+              class="star {{isFilled ? 'star-filled' : 'star-empty'}}"
+            >★</text>
+          </view>
         </view>
       </view>
       <view class="question-arrow">›</view>

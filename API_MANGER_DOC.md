@@ -347,7 +347,129 @@
 }
 ```
 
-### 4.2 创建题目
+### 4.2 获取单个题目详情
+
+**接口路径**: `GET /v1/questions/{question_id}`
+
+**路径参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| question_id | integer | 是 | 题目ID |
+
+**响应数据**:
+
+```json
+{
+  "code": 200,
+  "message": "获取成功",
+  "data": {
+    "id": 201,
+    "title": "Unit 1 - 日常对话练习",
+    "mode": "practice", // practice、exam 或 unspecified（未指定）
+    "type": "imitation", // imitation, listening, answering, retelling
+    "difficulty": 3, // 难度值 1-5 整数，1最简单，5最难
+    "difficulty_float": 0.5, // 难度值 0-1 浮点数（向后兼容）
+    "content_json": {}, // 题目内容和配置（JSON格式），根据题型不同格式不同，详见下方说明
+    "is_active": true, // 是否启用
+    "usage_type": 1, // 题目用途：0=未指定, 1=专项练习, 2=试卷
+    "created_at": "2024-09-01T08:00:00Z",
+    "updated_at": "2024-09-01T09:00:00Z"
+  }
+}
+```
+
+**content_json 字段格式说明**:
+
+不同题型的 `content_json` 格式不同，具体如下：
+
+1. **模仿朗读 (type=imitation)**
+   ```json
+   {
+     "content": "需要模仿朗读的文本内容",
+     "audio_url": "音频文件URL"
+   }
+   ```
+
+2. **听选信息 (type=listening)**
+   ```json
+   [
+     {
+       "text": {
+         "content": "第一段对话文本内容",
+         "audio_url": "第一段对话音频URL"
+       },
+       "questions": [
+         {
+           "content": "第一个问题的内容",
+           "audio_url": "第一个问题的音频URL"
+         },
+         {
+           "content": "第二个问题的内容",
+           "audio_url": "第二个问题的音频URL"
+         }
+       ]
+     },
+     // ... 共3段对话
+   ]
+   ```
+
+3. **回答问题 (type=answering)**
+   ```json
+   {
+     "text": {
+       "content": "短文文本内容或提示信息",
+       "audio_url": "短文音频文件URL"
+     },
+     "questions": [
+       {
+         "content": "第一个问题的内容",
+         "audio_url": "第一个问题的音频文件URL"
+       },
+       // ... 共4个问题
+     ]
+   }
+   ```
+
+4. **短文复述及提问 (type=retelling)**
+   ```json
+   {
+     "text": {
+       "theme": "主题描述（中文）",
+       "example": "示例文本内容（英文短文）",
+       "img_url": "图片URL"
+     },
+     "questions": [
+       {
+         "content": "第一个问题的内容（中文）",
+         "audio_url": "第一个问题的音频文件URL"
+       },
+       {
+         "content": "第二个问题的内容（中文）",
+         "audio_url": "第二个问题的音频文件URL"
+       }
+     ]
+   }
+   ```
+
+**错误响应**:
+
+```json
+{
+  "code": 404,
+  "message": "题目不存在",
+  "data": null
+}
+```
+
+**说明**:
+
+- 此接口用于获取单个题目的详细信息，包括完整的 `content_json` 内容
+- `difficulty` 字段返回 1-5 整数，`difficulty_float` 字段返回 0-1 浮点数（用于向后兼容）
+- `content_json` 的格式根据题型不同而不同，详见上方说明
+
+---
+
+### 4.3 创建题目
 
 **接口路径**: `POST /v1/questions`
 
@@ -357,10 +479,92 @@
 {
   "title": "string", // 题目名称，必填
   "mode": "string", // practice 或 exam，必填
-  "type": "string", // 题型，必填
-  "difficulty": 0.5 // 难度值 0-1，必填
+  "type": "string", // 题型，必填：imitation(模仿朗读)、listening(听选信息)、answering(回答问题)、retelling(短文复述及提问)
+  "difficulty": 0.5, // 难度值 0-1，必填
+  "content_json": {} // 题目内容和配置（JSON格式），根据题型不同格式不同，详见下方说明
 }
 ```
+
+**content_json 字段说明**:
+
+不同题型的 `content_json` 格式不同：
+
+1. **模仿朗读 (type=imitation)**
+   ```json
+   {
+     "content": "需要模仿朗读的文本内容",
+     "audio_url": "音频文件URL（可选，暂不支持可传空字符串）"
+   }
+   ```
+   示例：
+   ```json
+   {
+     "content": "Do you want to be my pen friend? My name is Kate. I'm a student from Sunshine Middle School.",
+     "audio_url": ""
+   }
+   ```
+
+2. **听选信息 (type=listening)**
+   ```json
+   [
+     {
+       "text": {
+         "content": "第一段对话文本内容",
+         "audio_url": "第一段对话音频URL（可选，暂不支持可传空字符串）"
+       },
+       "questions": [
+         {
+           "content": "第一个问题的内容",
+           "audio_url": "第一个问题的音频URL（可选，暂不支持可传空字符串）"
+         },
+         {
+           "content": "第二个问题的内容",
+           "audio_url": "第二个问题的音频URL（可选，暂不支持可传空字符串）"
+         }
+       ]
+     },
+     {
+       "text": {
+         "content": "第二段对话文本内容",
+         "audio_url": ""
+       },
+       "questions": [
+         {
+           "content": "第三个问题的内容",
+           "audio_url": ""
+         },
+         {
+           "content": "第四个问题的内容",
+           "audio_url": ""
+         }
+       ]
+     },
+     {
+       "text": {
+         "content": "第三段对话文本内容",
+         "audio_url": ""
+       },
+       "questions": [
+         {
+           "content": "第五个问题的内容",
+           "audio_url": ""
+         },
+         {
+           "content": "第六个问题的内容",
+           "audio_url": ""
+         }
+       ]
+     }
+   ]
+   ```
+   说明：
+   - 数组固定包含3个对象，对应三段对话
+   - 每个对象包含 `text` 和 `questions` 两个字段
+   - `text` 字段包含对话的文本内容和音频URL
+   - `questions` 字段是一个数组，固定包含2个问题对象
+   - 每个问题对象包含问题的文本内容和音频URL
+
+3. **其他题型（待补充）**
 
 **响应数据**:
 
@@ -379,9 +583,9 @@
 }
 ```
 
-### 4.3 更新题目
+### 4.4 更新题目
 
-**接口路径**: `PUT /v1/questions/{id}`
+**接口路径**: `PUT /v1/questions/{question_id}`
 
 **请求参数**:
 
@@ -396,9 +600,9 @@
 
 **响应数据**: 同创建题目接口
 
-### 4.4 删除题目
+### 4.5 删除题目
 
-**接口路径**: `DELETE /v1/questions/{id}`
+**接口路径**: `DELETE /v1/questions/{question_id}`
 
 **响应数据**:
 
@@ -412,7 +616,169 @@
 
 ---
 
-## 5. 通用响应格式
+## 5. 试卷管理相关
+
+### 5.1 创建试卷
+
+**接口路径**: `POST /v1/exam-papers`
+
+**请求参数**:
+
+```json
+{
+  "name": "string", // 试卷名称，必填
+  "description": "string", // 试卷描述，可选
+  "section_config": { // 各题型配置（JSON格式），必填
+    "section1": {
+      "count": 1, // 题数
+      "score": 25 // 分值
+    },
+    "section2": {
+      "count": 1,
+      "score": 25
+    },
+    "section3": {
+      "count": 1,
+      "score": 25
+    },
+    "section4": {
+      "count": 1,
+      "score": 25
+    }
+  },
+  "time_limit": 1200, // 时间限制（秒），可选，默认1200秒（20分钟）
+  "total_score": 100 // 试卷总分，可选，默认100分
+}
+```
+
+**说明**:
+- `section_config` 必须包含 `section1`、`section2`、`section3`、`section4` 四个部分，分别对应4种题型
+- `section1`: 模仿朗读
+- `section2`: 听选信息
+- `section3`: 回答问题
+- `section4`: 短文复述及提问
+- 各题型分值之和必须等于 `total_score`
+- `time_limit` 单位为秒，默认1200秒（20分钟）
+
+**响应数据**:
+
+```json
+{
+  "code": 200,
+  "message": "创建成功",
+  "data": {
+    "id": 1,
+    "name": "期中考试试卷",
+    "description": "期中考试综合测试",
+    "section_config": {
+      "section1": {"count": 1, "score": 25},
+      "section2": {"count": 1, "score": 25},
+      "section3": {"count": 1, "score": 25},
+      "section4": {"count": 1, "score": 25}
+    },
+    "time_limit": 1200,
+    "total_score": 100,
+    "is_active": true,
+    "created_by": null,
+    "created_at": "2025-01-15T10:00:00Z",
+    "updated_at": null
+  }
+}
+```
+
+**错误响应**:
+
+```json
+{
+  "code": 400,
+  "message": "各题型分值之和（75）与试卷总分（100）不一致",
+  "data": null
+}
+```
+
+### 5.2 创建试卷题目关联关系
+
+**接口路径**: `POST /v1/paper-questions`
+
+**请求参数**:
+
+```json
+{
+  "paper_id": 1, // 试卷ID，必填
+  "question_id": 201, // 题目ID，必填
+  "question_type": 1, // 题型，必填：1=模仿朗读, 2=听选信息, 3=回答问题, 4=短文复述及提问
+  "section": 1, // 试卷部分（1-4对应4种题型），必填
+  "order_num": 1, // 在section中的顺序，必填
+  "max_score": 25.0 // 该题分值，必填
+}
+```
+
+**说明**:
+- `question_type` 必须与题目的实际题型匹配
+- `section` 必须与 `question_type` 对应：
+  - `section=1` 对应 `question_type=1`（模仿朗读）
+  - `section=2` 对应 `question_type=2`（听选信息）
+  - `section=3` 对应 `question_type=3`（回答问题）
+  - `section=4` 对应 `question_type=4`（短文复述及提问）
+- `order_num` 表示该题目在对应section中的顺序，通常为1（因为每个section只有一道题）
+
+**响应数据**:
+
+```json
+{
+  "code": 200,
+  "message": "创建成功",
+  "data": {
+    "id": 1,
+    "paper_id": 1,
+    "question_id": 201,
+    "question_type": 1,
+    "section": 1,
+    "order_num": 1,
+    "max_score": 25.0,
+    "created_at": "2025-01-15T10:00:00Z",
+    "updated_at": null
+  }
+}
+```
+
+**错误响应**:
+
+```json
+{
+  "code": 404,
+  "message": "试卷不存在",
+  "data": null
+}
+```
+
+或
+
+```json
+{
+  "code": 404,
+  "message": "题目不存在",
+  "data": null
+}
+```
+
+或
+
+```json
+{
+  "code": 400,
+  "message": "题目题型（2）与指定的题型（1）不匹配",
+  "data": null
+}
+```
+
+**说明**:
+- 创建试卷时，通常需要调用4次此接口，为每种题型各创建一道题目的关联关系
+- 建议前端在创建试卷成功后，批量创建试卷题目关联关系
+
+---
+
+## 6. 通用响应格式
 
 ### 成功响应
 
@@ -445,7 +811,7 @@
 
 ---
 
-## 6. 数据字典
+## 7. 数据字典
 
 ### 6.1 年级枚举
 
@@ -474,7 +840,7 @@
 
 ---
 
-## 7. 注意事项
+## 8. 注意事项
 
 1. **认证**: 除登录接口外，所有接口都需要在请求头中携带 `Authorization: Bearer <token>`
 2. **分页**: 所有列表接口都支持分页，建议前端使用 `skip` 和 `limit` 参数
@@ -485,7 +851,7 @@
 
 ---
 
-## 8. 待实现接口
+## 9. 待实现接口
 
 以下接口在前端代码中可能需要，但当前未实现，建议后端优先实现：
 
@@ -499,3 +865,4 @@
 ## 更新日志
 
 - 2025-01-15: 初始版本，包含学习情况、学生管理、题目管理相关接口
+- 2025-01-15: 新增试卷管理接口，支持创建试卷和试卷题目关联关系

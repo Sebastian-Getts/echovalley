@@ -118,6 +118,10 @@ export function studentLogin(username: string, password: string) {
  * 获取练习模块列表
  */
 export function getPracticeModules() {
+  console.log('[API] 调用 getPracticeModules, URL:', '/miniprogram/practice/modules')
+  const token = wx.getStorageSync('token')
+  console.log('[API] Token:', token ? '存在' : '不存在')
+  
   return request<Array<{
     id: number
     title: string
@@ -125,6 +129,12 @@ export function getPracticeModules() {
     count: number
   }>>({
     url: '/miniprogram/practice/modules'
+  }).then((data) => {
+    console.log('[API] getPracticeModules 返回数据:', JSON.stringify(data, null, 2))
+    return data
+  }).catch((error) => {
+    console.error('[API] getPracticeModules 请求失败:', error)
+    throw error
   })
 }
 
@@ -240,4 +250,5 @@ export function submitAnswer(studentId: number, answerData: {
     data: answerData
   })
 }
+
 

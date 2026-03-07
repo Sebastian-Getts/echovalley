@@ -9,6 +9,7 @@ Page({
     searchKeyword: '',
     moduleTitle: '',
     moduleId: 0,
+    typeCode: '', // 模块类型代码，用于跳转判断
     lang: {} as any,
     searchTimer: null as any // 用于防抖搜索
   },
@@ -26,10 +27,12 @@ Page({
     // 获取传递的参数
     const moduleId = options.moduleId ? parseInt(options.moduleId, 10) : 0
     const moduleTitle = options.moduleTitle ? decodeURIComponent(options.moduleTitle) : '练习题目'
+    const typeCode = options.typeCode ? decodeURIComponent(options.typeCode) : ''
 
     this.setData({
       moduleId,
-      moduleTitle
+      moduleTitle,
+      typeCode
     })
 
     this.loadLanguage()
@@ -84,13 +87,26 @@ Page({
 
     getPracticeQuestions(params)
       .then((questions) => {
-        // 格式化题目数据，优化难度显示
-        const formattedQuestions = questions.map((q: any) => ({
-          ...q,
-          difficultyText: this.formatDifficulty(q.difficulty),
-          typeText: this.formatType(q.type)
-        }))
+        console.log('[Practice Questions] Raw questions from API:', questions)
+        // 格式化题目数据，确保 difficulty 在 1-5 范围内
+        const formattedQuestions = questions.map((q: any) => {
+          const normalizedDifficulty = this.normalizeDifficulty(q.difficulty)
+          console.log(`[Practice Questions] Question ${q.id}: difficulty=${q.difficulty}, normalized=${normalizedDifficulty}`)
+          // 生成星星数组：每个元素表示该位置的星星是否填充
+          const stars = [1, 2, 3, 4, 5].map(starIndex => starIndex <= normalizedDifficulty)
+          
+          const formatted = {
+            ...q,
+            // 确保 difficulty 是 1-5 之间的整数
+            difficulty: normalizedDifficulty,
+            // 添加星星数组，方便模板使用
+            stars: stars
+          }
+          console.log(`[Practice Questions] Formatted question ${formatted.id}:`, formatted, 'stars:', stars)
+          return formatted
+        })
         
+        console.log('[Practice Questions] Formatted questions:', formattedQuestions)
         this.setData({
           questions: formattedQuestions,
           loading: false
@@ -172,19 +188,51 @@ Page({
     this.loadQuestions()
   },
 
-  formatDifficulty(difficulty: number): string {
-    const language = wx.getStorageSync('language') || 'en'
-    if (language === 'zh') {
-      if (difficulty < 0.3) return '简单'
-      if (difficulty < 0.6) return '中等'
-      if (difficulty < 0.8) return '较难'
-      return '困难'
-    } else {
-      if (difficulty < 0.3) return 'Easy'
-      if (difficulty < 0.6) return 'Medium'
-      if (difficulty < 0.8) return 'Hard'
-      return 'Very Hard'
+  normalizeDifficulty(difficulty: any): number {
+    // 将 difficulty 转换为 1-5 范围的整数
+    // 数据库中的 difficulty 字段是 1-5
+    console.log('[normalizeDifficulty] Input:', difficulty, 'Type:', typeof difficulty)
+    
+    // 处理 null/undefined
+    if (difficulty === null || difficulty === undefined) {
+      console.log('[normalizeDifficulty] Value is null/undefined, returning 3')
+      return 3
     }
+    
+    // 处理数字类型（包括浮点数 1.0, 2.0 等）
+    if (typeof difficulty === 'number') {
+      // 使用 Math.floor 向下取整，或者 Math.round 四舍五入
+      // 为了安全，先检查是否为 NaN
+      if (isNaN(difficulty)) {
+        console.log('[normalizeDifficulty] NaN detected, returning 3')
+        return 3
+      }
+      const rounded = Math.round(difficulty)
+      // 确保在 1-5 范围内
+      const result = Math.max(1, Math.min(5, rounded))
+      console.log('[normalizeDifficulty] Number:', difficulty, '→ Rounded:', rounded, '→ Result:', result)
+      return result
+    }
+    
+    // 如果是字符串，尝试转换为数字
+    if (typeof difficulty === 'string') {
+      const trimmed = difficulty.trim()
+      if (trimmed === '') {
+        console.log('[normalizeDifficulty] Empty string, returning 3')
+        return 3
+      }
+      const num = parseFloat(trimmed) // 使用 parseFloat 而不是 parseInt，以便处理 "1.0" 这样的字符串
+      if (!isNaN(num)) {
+        const rounded = Math.round(num)
+        const result = Math.max(1, Math.min(5, rounded))
+        console.log('[normalizeDifficulty] String:', difficulty, '→ Parsed:', num, '→ Rounded:', rounded, '→ Result:', result)
+        return result
+      }
+    }
+    
+    // 默认返回 3（中等难度）
+    console.log('[normalizeDifficulty] Unknown type/value, returning 3')
+    return 3
   },
 
   formatType(type: string): string {
@@ -208,16 +256,27 @@ Page({
     const question = this.data.questions.find(q => q.id === questionId)
     
     if (question) {
-      const language = wx.getStorageSync('language') || 'en'
-      const enterText = language === 'zh' ? '进入' : 'Enter'
-      wx.showToast({
-        title: `${enterText} ${question.title}`,
-        icon: 'none'
+      // 根据模块类型跳转到不同的页面
+      const typeCode = this.data.typeCode
+      const moduleId = this.data.moduleId // 获取模块ID（即 question_type_id）
+      let targetPage = ''
+      
+      if (typeCode === 'imitation_reading') {
+        targetPage = '/pages/imitation-reading/imitation-reading'
+      } else if (typeCode === 'listening_selection') {
+        targetPage = '/pages/listening-selection/listening-selection'
+      } else if (typeCode === 'question_answering') {
+        targetPage = '/pages/question-answering/question-answering'
+      } else if (typeCode === 'passage_retelling') {
+        targetPage = '/pages/passage-retelling/passage-retelling'
+      } else {
+        // 默认跳转到模仿朗读页面（兼容旧逻辑）
+        targetPage = '/pages/imitation-reading/imitation-reading'
+      }
+      
+      wx.navigateTo({
+        url: `${targetPage}?questionId=${questionId}`
       })
-      // TODO: 这里后续可以跳转到具体的答题页面
-      // wx.navigateTo({
-      //   url: `/pages/question-detail/question-detail?questionId=${questionId}`
-      // })
     }
   }
 })
