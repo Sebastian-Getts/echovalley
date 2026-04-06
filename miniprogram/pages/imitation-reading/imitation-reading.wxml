@@ -2,45 +2,53 @@
 <view class="imitation-reading-container">
   <!-- 题目标题 -->
   <view class="question-title">{{questionTitle}}</view>
-  
+
   <!-- 第一部分和第二部分：共用白色底板 -->
   <view class="content-wrapper">
     <view class="section-header">
       <text class="section-title">一、模仿朗读(共4分)</text>
     </view>
-    
+
     <view class="question-content">
       <view class="content-text">{{questionContent}}</view>
     </view>
   </view>
-  
+
   <!-- 第三部分：时间控制区域 -->
-  <view class="timer-control">
-    <view class="timer-button-container">
-      <view 
-        class="timer-button"
-        bindtap="onTimerToggle"
-      >
-        <!-- 进度圆圈：从顶部开始，逐渐显现绿色边框 -->
-        <view class="timer-progress-ring">
-          <!-- 右半圆边框：显示0-180度的部分 -->
-          <view class="progress-half-wrapper progress-right-wrapper">
-            <view class="progress-half progress-right" style="transform: rotate({{progressAngle > 180 ? 180 : progressAngle}}deg);"></view>
-          </view>
-          <!-- 左半圆边框：显示180-360度的部分 -->
-          <view class="progress-half-wrapper progress-left-wrapper" wx:if="{{progressAngle > 180}}">
-            <view class="progress-half progress-left" style="transform: rotate({{progressAngle - 180}}deg);"></view>
-          </view>
-        </view>
-        <view class="timer-button-inner">
-          <text class="timer-icon">{{isPaused ? '▶' : '⏸'}}</text>
-        </view>
-      </view>
-    </view>
-    <view class="timer-text">
-      <text class="timer-label">准备时间：</text>
-      <text class="timer-value">{{timerText}}</text>
-    </view>
-  </view>
+  <!-- 第一阶段：旁白播放 -->
+  <countdown-timer
+    id="phase1Timer"
+    duration="{{phase1Duration}}"
+    label="题目说明"
+    bind:finish="onPhase1Finish"
+  wx:if="{{showPhase1Timer}}"
+  />
+
+  <!-- 第二阶段：短文播放 -->
+  <countdown-timer
+    id="phase2Timer"
+    duration="{{phase2Duration}}"
+    label="播放录音"
+    bind:finish="onPhase2Finish"
+  wx:if="{{showPhase2Timer}}"
+  />
+
+  <!-- 第三阶段：准备录音 -->
+  <countdown-timer
+    id="phase3Timer"
+    duration="{{phase3Duration}}"
+    label="准备朗读"
+    bind:finish="onPhase3Finish"
+  wx:if="{{showPhase3Timer}}"
+  />
+
+  <!-- 第四阶段：录音 -->
+  <countdown-timer
+    id="phase4Timer"
+    duration="{{phase4Duration}}"
+    label="开始录音"
+    bind:finish="onPhase4Finish"
+  wx:if="{{showPhase4Timer}}"
+  />
 </view>
 

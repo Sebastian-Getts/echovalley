@@ -1,50 +1,74 @@
 <!--listening-selection.wxml-->
 <view class="listening-selection-container">
-  <!-- 题目标题（如果有） -->
-  <view class="question-title" wx:if="{{questionTitle}}">{{questionTitle}}</view>
-  
-  <!-- 第一部分和第二部分：共用白色底板 -->
-  <view class="content-wrapper">
+  <!-- 题目标题 -->
+  <view class="question-title">{{questionTitle}}</view>
+
+  <!-- 静态说明区域 -->
+  <view class="content-wrapper" wx:if="{{!showContent}}">
     <view class="section-header">
       <text class="section-title">二、信息获取(共10分)</text>
     </view>
-    
+
     <view class="question-content">
       <view class="section-subtitle">第一节 听选信息(1*6=6)</view>
       <view class="content-text">听三段对话，每段播放两遍。各段播放前你有10秒钟的阅题时间。各段播放后有两个问题。请根据所听到的问题和括号内的提示，选择正确的信息在8秒钟内口头回答。</view>
     </view>
   </view>
-  
-  <!-- 第三部分：时间控制区域 -->
-  <view class="timer-control">
-    <view class="timer-button-container">
-      <view 
-        class="timer-button"
-        bindtap="onTimerToggle"
-      >
-        <!-- 进度圆圈：从顶部开始，逐渐显现绿色边框 -->
-        <view class="timer-progress-ring">
-          <!-- 右半圆边框：显示0-180度的部分 -->
-          <view class="progress-half-wrapper progress-right-wrapper">
-            <view class="progress-half progress-right" style="transform: rotate({{progressAngle > 180 ? 180 : progressAngle}}deg);"></view>
-          </view>
-          <!-- 左半圆边框：显示180-360度的部分 -->
-          <view class="progress-half-wrapper progress-left-wrapper" wx:if="{{progressAngle > 180}}">
-            <view class="progress-half progress-left" style="transform: rotate({{progressAngle - 180}}deg);"></view>
-          </view>
-        </view>
-        <view class="timer-button-inner">
-          <text class="timer-icon">{{isPaused ? '▶' : '⏸'}}</text>
+
+  <!-- 动态内容区域 -->
+  <view class="content-wrapper dynamic-content" wx:if="{{showContent}}">
+    <view class="section-header">
+      <text class="section-title">二、信息获取(共10分)</text>
+    </view>
+
+    <!-- 旁白内容（带题目） -->
+    <block wx:if="{{currentContentType === 'preface' && currentContent.preface}}">
+      <view class="preface-text">{{currentContent.preface.title_content}}</view>
+      <view class="questions-section" wx:if="{{currentContent.questions && currentContent.questions.length > 0}}">
+        <view class="question-item" wx:for="{{currentContent.questions}}" wx:for-index="qIdx" wx:key="qIdx">
+          <text class="question-text">{{item.content}}</text>
         </view>
       </view>
-    </view>
-    <view class="timer-text">
-      <text class="timer-label">准备时间：</text>
-      <text class="timer-value">{{timerText}}</text>
-    </view>
-  </view>
-  
-  <!-- 提示信息 -->
-  <view class="hint-text">5秒后自动进入第一段对话</view>
-</view>
+    </block>
 
+    <!-- 纯题目内容（阅题/录音时显示） -->
+    <block wx:if="{{currentContentType === 'question' && currentContent.questions && currentContent.questions.length > 0}}">
+      <view class="preface-text">{{currentContent.title_content}}</view>
+      <view class="questions-section">
+        <view class="question-item" wx:for="{{currentContent.questions}}" wx:for-index="qIdx" wx:key="qIdx">
+          <text class="question-text">{{item.content}}</text>
+          <view class="question-options" wx:if="{{item.options}}">
+            <text wx:for="{{item.options}}" wx:for-index="oIdx" wx:key="oIdx" class="option-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 播放音频倒计时 -->
+  <countdown-timer
+    id="audioTimer"
+    duration="{{currentAudioDuration}}"
+    label="{{currentStepText}}"
+    bind:finish="onAudioTimerFinish"
+    wx:if="{{showAudioTimer}}"
+  />
+
+  <!-- 阅题倒计时 -->
+  <countdown-timer
+    id="readingTimer"
+    duration="{{readingDuration}}"
+    label="{{currentStepText}}"
+    bind:finish="onReadingTimerFinish"
+    wx:if="{{showReadingTimer}}"
+  />
+
+  <!-- 录音倒计时 -->
+  <countdown-timer
+    id="recordingTimer"
+    duration="{{recordingDuration}}"
+    label="{{currentStepText}}"
+    bind:finish="onRecordingTimerFinish"
+    wx:if="{{showRecordingTimer}}"
+  />
+</view>

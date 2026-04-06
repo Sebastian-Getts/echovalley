@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "听选信息",
-  "usingComponents": {}
+  "usingComponents": {
+    "countdown-timer": "/components/countdown-timer/countdown-timer"
+  }
 }
 

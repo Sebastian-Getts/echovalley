@@ -79,6 +79,7 @@ Page({
           wx.setStorageSync('isLoggedIn', true)
           wx.setStorageSync('username', result.name || username.trim())
           wx.setStorageSync('studentId', result.student_id || '')
+          wx.setStorageSync('studentDbId', result.student_db_id || 0)
           if (result.token) {
             wx.setStorageSync('token', result.token)
           }

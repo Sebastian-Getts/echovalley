@@ -55,133 +55,50 @@
   margin-top: 40rpx;
 }
 
-.timer-control {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 30rpx;
-  background-color: transparent; /* 移除白色背景 */
-  z-index: 100;
-}
-
-.timer-button-container {
-  margin-right: 30rpx;
-  position: relative;
-}
-
-.timer-button {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
-  background-color: #4A90E2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  box-shadow: 0 4rpx 12rpx rgba(74, 144, 226, 0.3);
-}
-
-/* 外层绿色进度圆圈 - 从顶部开始，逐渐显现绿色边框 */
-.timer-progress-ring {
-  position: absolute;
-  top: -5rpx;
-  left: -5rpx;
-  width: 110rpx;
-  height: 110rpx;
-  border-radius: 50%;
-  box-sizing: border-box;
-  z-index: 0; /* 确保在蓝色圆圈下方 */
-}
-
-/* 半圆容器：用于隐藏不需要的部分 */
-.progress-half-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 110rpx;
-  height: 110rpx;
-  overflow: hidden;
-}
-
-/* 右半圆容器：只显示右半部分（从中心线到右边） */
-.progress-right-wrapper {
-  width: 50%;
-  height: 100%;
-  left: 50%;
-  top: 0;
-}
-
-/* 左半圆容器：只显示左半部分（从中心线到左边） */
-.progress-left-wrapper {
-  width: 50%;
-  height: 100%;
-  left: 0;
-  top: 0;
-}
-
-/* 半圆边框：用于显示进度 */
-.progress-half {
-  position: absolute;
-  top: 0;
-  width: 110rpx;
-  height: 110rpx;
-  border-radius: 50%;
-  border: 5rpx solid transparent;
-  box-sizing: border-box;
-  transform-origin: center center;
-  transition: transform 0.1s linear;
-}
-
-/* 右半圆边框：显示0-180度的进度（从顶部开始，顺时针旋转） */
-.progress-right {
-  border-top-color: #52C41A;
-  border-right-color: #52C41A;
-  left: -55rpx; /* 向左偏移一半宽度，使右半部分在容器中显示 */
-}
-
-/* 左半圆边框：显示180-360度的进度（从底部开始，顺时针旋转） */
-.progress-left {
-  border-bottom-color: #52C41A;
-  border-left-color: #52C41A;
-  left: 0; /* 左半部分正常显示 */
-}
-
-.timer-button-inner {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 2; /* 确保在绿色圆圈上方 */
-}
-
-.timer-icon {
-  font-size: 40rpx;
-  color: #fff;
-  line-height: 1;
-}
-
-.timer-text {
-  display: flex;
-  align-items: baseline;
-  gap: 10rpx;
-}
-
-.timer-label {
+.preface-text {
   font-size: 28rpx;
-  color: #666;
+  color: #333;
+  line-height: 1.8;
+  margin-bottom: 30rpx;
+  white-space: pre-wrap;
 }
 
-.timer-value {
-  font-size: 36rpx;
-  font-weight: 600;
+.questions-section {
+  margin-top: 20rpx;
+}
+
+.question-item {
+  background-color: #f8f8f8;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.question-label {
+  font-size: 28rpx;
+  font-weight: bold;
   color: #333;
-  font-variant-numeric: tabular-nums;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.question-text {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+}
+
+.question-options {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.option-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
 }
 
 .hint-text {
@@ -194,3 +111,42 @@
   text-align: center;
 }
 
+.status-wrapper {
+  background-color: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin: 20rpx 0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.status-text {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #007AFF;
+}
+
+.debug-wrapper {
+  margin-top: 30rpx;
+  padding: 20rpx;
+  background-color: #f0f0f0;
+  border-radius: 8rpx;
+}
+
+.debug-title {
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.debug-log {
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-item {
+  font-size: 20rpx;
+  color: #999;
+  line-height: 1.6;
+}
