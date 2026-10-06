@@ -202,19 +202,9 @@ Page({
     if (section && section.items[itemIndex]) {
       const examItem = section.items[itemIndex]
       const examId = examItem.id || examItem // 兼容字符串或对象格式
-      const examTitle = typeof examItem === 'string' ? examItem : examItem.title
-      
-      const language = wx.getStorageSync('language') || 'en'
-      const enterText = language === 'zh' ? '进入' : 'Enter'
-      wx.showToast({
-        title: `${enterText} ${examTitle}`,
-        icon: 'none'
+      wx.navigateTo({
+        url: `/pages/exam-detail/exam-detail?examId=${examId}`,
       })
-      // TODO: 这里后续可以跳转到具体的考试页面，传递exam_id等参数
-      // wx.navigateTo({
-      //   url: `/pages/exam-detail/exam-detail?exam_id=${examId}`
-      // })
     }
   }
 })
-

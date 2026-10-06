@@ -1,0 +1,40 @@
+<!--passage-retelling-question-2.wxml-->
+<view class="passage-retelling-question-2-container">
+  <!-- 内容区域 -->
+  <view class="content-wrapper" wx:if="{{showContent}}">
+    <view class="section-header">
+      <text class="section-title">三、短文复述及提问（共11分）</text>
+    </view>
+
+    <view class="question-content">
+      <view class="section-subtitle">第二节 提问（1.5x2=3分）</view>
+
+      <!-- 问题2 -->
+      <view class="question-item">
+        <view class="question-prompt">请你准备第二个问题</view>
+        <view class="question-content-text">{{question.content}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 准备回答倒计时 -->
+  <countdown-timer
+    id="prepareTimer"
+    duration="{{prepareDuration}}"
+    label="{{currentStepText}}"
+    bind:finish="onPrepareTimerFinish"
+    wx:if="{{showPrepareTimer}}"
+  />
+
+  <!-- 录音倒计时 -->
+  <countdown-timer
+    id="recordingTimer"
+    duration="{{recordingDuration}}"
+    label="{{currentStepText}}"
+    allowEarlyStop="{{true}}"
+    bind:finish="onRecordingTimerFinish"
+    bind:earlystop="onEarlyStopRecording"
+    wx:if="{{showRecordingTimer}}"
+  />
+  <button wx:if="{{submitFailed}}" bindtap="retrySubmit">重新上传</button>
+</view>

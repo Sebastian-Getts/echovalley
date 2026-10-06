@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="result-card">
+    <view class="check">✓</view>
+    <view class="title">交卷成功</view>
+    <view class="exam-title">{{title}}</view>
+    <view class="status">四类题型录音均已提交，当前状态：待人工评分</view>
+    <view class="score">满分 {{totalScore}} 分</view>
+  </view>
+  <button class="button" bindtap="backToExamList">返回考试列表</button>
+</view>

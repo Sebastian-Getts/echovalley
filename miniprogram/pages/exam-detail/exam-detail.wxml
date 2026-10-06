@@ -1,0 +1,31 @@
+<view class="page" wx:if="{{exam}}">
+  <view class="card hero">
+    <view class="title">{{exam.title}}</view>
+    <view class="description">{{exam.description || '请按规定顺序完成四类口语题目。'}}</view>
+    <view class="meta">
+      <view><text class="number">{{exam.total_score}}</text><text> 分</text></view>
+      <view><text class="number">{{exam.time_limit / 60}}</text><text> 分钟</text></view>
+      <view><text class="number">4</text><text> 类题型</text></view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">考试顺序</view>
+    <view class="question" wx:for="{{questions}}" wx:key="question_id">
+      <view class="order">{{index + 1}}</view>
+      <view class="question-main">
+        <view class="question-type">{{item.typeLabel}}</view>
+        <view class="question-title">{{item.title}}</view>
+      </view>
+      <view class="score">{{item.max_score}}分</view>
+    </view>
+  </view>
+
+  <view class="notice">
+    开始后将按固定顺序自动进入下一题。音频播放、阅题和准备阶段不能跳过；录音阶段可以提前结束。
+  </view>
+
+  <button class="start-button" loading="{{starting}}" disabled="{{starting}}" bindtap="startExam">
+    开始考试
+  </button>
+</view>
