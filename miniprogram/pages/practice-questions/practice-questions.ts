@@ -258,7 +258,6 @@ Page({
     if (question) {
       // 根据模块类型跳转到不同的页面
       const typeCode = this.data.typeCode
-      const moduleId = this.data.moduleId // 获取模块ID（即 question_type_id）
       let targetPage = ''
       
       if (typeCode === 'imitation_reading') {
@@ -280,4 +279,3 @@ Page({
     }
   }
 })
-

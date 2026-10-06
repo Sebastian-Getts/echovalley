@@ -1,7 +1,7 @@
 // API工具函数
 // 配置API基础URL，可以根据环境切换
 // 生产环境请修改为实际的服务器地址
-const API_BASE_URL = 'http://localhost:8000/api/v1' // 开发环境，实际使用时需要配置为实际服务器地址
+const API_BASE_URL = 'http://localhost:8001/api/v1' // 开发环境，实际使用时需要配置为实际服务器地址
 
 interface RequestOptions {
   url: string
@@ -105,6 +105,7 @@ export function studentLogin(username: string, password: string) {
     success: boolean
     message: string
     student_id?: string
+    student_db_id?: number
     name?: string
     token?: string
   }>({
@@ -215,6 +216,46 @@ export function getExamQuestions(params?: {
   })
 }
 
+export interface ExamQuestionSummary {
+  question_id: number
+  title: string
+  question_type: number
+  section: number
+  order_num: number
+  max_score: number
+}
+
+export interface ExamDetail {
+  id: number
+  title: string
+  description?: string
+  time_limit: number
+  total_score: number
+  questions: ExamQuestionSummary[]
+}
+
+export function getExamDetail(examId: number) {
+  return request<ExamDetail>({ url: `/miniprogram/exam/detail/${examId}` })
+}
+
+export function startExamSession(examId: number) {
+  return request<{
+    session_id: number
+    status: number
+    answer_counts: Record<string, number>
+  }>({
+    url: `/miniprogram/exam/${examId}/session`,
+    method: 'POST',
+  })
+}
+
+export function completeExamSession(examId: number, sessionId: number) {
+  return request<{ status: string; session_id: number }>({
+    url: `/miniprogram/exam/${examId}/complete?session_id=${sessionId}`,
+    method: 'POST',
+  })
+}
+
 /**
  * 获取题目详情
  */
@@ -228,17 +269,18 @@ export function getQuestionDetail(questionId: number) {
  * 提交答题记录
  */
 export function submitAnswer(studentId: number, answerData: {
+  session_id: number
   question_id: number
+  answers?: Array<{ audio_url: string; duration: number }>
   answer_text?: string
-  audio_url?: string
   selected_options?: string
 }) {
   return request<{
     id: number
+    session_id: number
     student_id: number
     question_id: number
-    answer_text?: string
-    audio_url?: string
+    answer_detail: string | null
     selected_options?: string
     score?: number
     grade?: string
@@ -251,4 +293,94 @@ export function submitAnswer(studentId: number, answerData: {
   })
 }
 
+/**
+ * 获取或创建 session
+ */
+export function getOrCreateSession(questionId: number) {
+  return request<{
+    session_id: number
+    status: number  // 0=进行中, 1=已完成
+    has_answer_record: boolean
+    answer_count: number
+    answer_detail: string | null  // JSON string
+  }>({
+    url: `/miniprogram/session/${questionId}`
+  })
+}
 
+/**
+ * 重置 session（重新开始）
+ */
+export function resetSession(questionId: number) {
+  return request<{
+    session_id: number
+    status: number
+    message: string
+  }>({
+    url: `/miniprogram/session/${questionId}/reset`,
+    method: 'POST'
+  })
+}
+
+/**
+ * 完成 session
+ */
+export function completeSession(questionId: number) {
+  return request<{
+    status: string
+    session_id: number | null
+  }>({
+    url: `/miniprogram/session/${questionId}/complete`,
+    method: 'POST'
+  })
+}
+
+/**
+ * 上传录音文件到 MinIO
+ * 注意：使用 wx.uploadFile 而非 request
+ */
+export function uploadAudio(filePath: string, _questionId: number) {
+  return new Promise<{ audio_url: string; object_name: string; size: number }>(
+    (resolve, reject) => {
+      const token = wx.getStorageSync('token')
+      wx.uploadFile({
+        url: `${API_BASE_URL}/miniprogram/audio/upload`,
+        filePath: filePath,
+        name: 'file',
+        header: {
+          'Authorization': `Bearer ${token}`
+        },
+        success: (res) => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const data = JSON.parse(res.data)
+              resolve(data)
+            } catch (e) {
+              reject(new Error('Failed to parse response'))
+            }
+          } else {
+            reject(new Error(`Upload failed: ${res.statusCode}`))
+          }
+        },
+        fail: (err) => {
+          reject(err)
+        }
+      })
+    }
+  )
+}
+
+/**
+ * 获取音频的临时访问 URL（presigned URL）
+ * 用于小程序播放音频，因为 InnerAudioContext 无法发送认证头
+ */
+export function getPresignedAudioUrl(minioUrl: string) {
+  return request<{
+    url: string
+    expires_in: number
+  }>({
+    url: '/miniprogram/audio/presigned',
+    method: 'POST',
+    data: { url: minioUrl }
+  })
+}
