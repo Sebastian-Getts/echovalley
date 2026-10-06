@@ -14,6 +14,8 @@
     "pages/passage-retelling-question-1/passage-retelling-question-1",
     "pages/passage-retelling-question-2/passage-retelling-question-2",
     "pages/exam/exam",
+    "pages/exam-detail/exam-detail",
+    "pages/exam-result/exam-result",
     "pages/profile/profile",
     "pages/about/about",
     "pages/settings/settings"

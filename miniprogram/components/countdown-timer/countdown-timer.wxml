@@ -1,0 +1,24 @@
+<!--components/countdown-timer/countdown-timer.wxml-->
+<view class="countdown-timer-control">
+  <view class="timer-button-container">
+    <!-- 进度圆圈：使用 conic-gradient 实现平滑圆弧，从12点钟位置开始 -->
+    <view class="timer-progress-ring" style="background: conic-gradient(from 0deg at 50% 50%, #4A90E2 0%, #4A90E2 {{progressPercent}}%, transparent {{progressPercent}}%, transparent 100%);">
+      <!-- 中间的白色圆，形成圆环效果 -->
+      <view class="timer-progress-inner"></view>
+    </view>
+    <!-- 播放按钮：实心蓝色圆形 + 白色播放图标 -->
+    <view class="timer-button {{allowEarlyStop ? 'timer-button-recording' : ''}}" bindtap="onControlTap">
+      <view class="timer-button-inner">
+        <view class="stop-icon" wx:if="{{allowEarlyStop}}"></view>
+        <view class="pause-icon" wx:else>
+          <view class="pause-bar"></view>
+          <view class="pause-bar"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="timer-text">
+    <text class="timer-label">{{label}}：</text>
+    <text class="timer-value">{{timerText}}</text>
+  </view>
+</view>
