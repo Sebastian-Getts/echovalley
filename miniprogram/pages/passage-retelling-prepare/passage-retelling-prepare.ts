@@ -120,9 +120,8 @@ Page({
 
   startTimer() {
     // 设置定时器，每秒更新一次
-    const that = this
     const interval = setInterval(() => {
-      that.updateTimer()
+      this.updateTimer()
     }, 1000)
     
     this.setData({
@@ -180,4 +179,3 @@ Page({
     })
   }
 })
-

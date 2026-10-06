@@ -6,11 +6,11 @@
   <!-- 第一部分和第二部分：共用白色底板 -->
   <view class="content-wrapper" wx:if="{{showContent}}">
     <view class="section-header">
-      <text class="section-title">三、短文复述及提问（共11分）</text>
+      <text class="section-title">四、短文复述及提问（共{{maxScore}}分）</text>
     </view>
 
     <view class="question-content">
-      <view class="section-subtitle">第一节 短文复述（8分）</view>
+      <view class="section-subtitle">第一节 短文复述</view>
       <view class="content-text">
         <text>你将听到{{theme}}，录音播放两遍。请根据所听到的内容，依据思维导图的提示，在60秒内复述短文。</text>
       </view>
@@ -62,7 +62,9 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
+    bind:earlystop="onEarlyStopRecording"
     wx:if="{{showRecordingTimer}}"
   />
 </view>

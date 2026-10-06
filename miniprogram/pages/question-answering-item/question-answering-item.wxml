@@ -1,49 +1,40 @@
 <!--question-answering-item.wxml-->
 <view class="question-answering-item-container">
-  <!-- 第一部分和第二部分：共用白色底板 -->
   <view class="content-wrapper">
     <view class="section-header">
       <text class="section-title">二、信息获取(共10分)</text>
     </view>
-    
-    <view class="question-content">
-      <view class="instruction-text">现在你有15秒钟的时间阅读这四个问题。</view>
-      
-      <!-- 当前问题 -->
-      <view class="question-item" wx:if="{{currentQuestion}}">
-        <view class="question-number">{{currentQuestion.id}}.</view>
-        <view class="question-text">{{currentQuestion.question}}</view>
-      </view>
-    </view>
-  </view>
-  
-  <!-- 第三部分：时间控制区域 -->
-  <view class="timer-control">
-    <view class="timer-button-container">
-      <view 
-        class="timer-button"
-        bindtap="onTimerToggle"
-      >
-        <!-- 进度圆圈：从顶部开始，逐渐显现绿色边框 -->
-        <view class="timer-progress-ring">
-          <!-- 右半圆边框：显示0-180度的部分 -->
-          <view class="progress-half-wrapper progress-right-wrapper">
-            <view class="progress-half progress-right" style="transform: rotate({{progressAngle > 180 ? 180 : progressAngle}}deg);"></view>
-          </view>
-          <!-- 左半圆边框：显示180-360度的部分 -->
-          <view class="progress-half-wrapper progress-left-wrapper" wx:if="{{progressAngle > 180}}">
-            <view class="progress-half progress-left" style="transform: rotate({{progressAngle - 180}}deg);"></view>
-          </view>
-        </view>
-        <view class="timer-button-inner">
-          <text class="timer-icon">{{isPaused ? '▶' : '⏸'}}</text>
-        </view>
-      </view>
-    </view>
-    <view class="timer-text">
-      <text class="timer-label">准备时间：</text>
-      <text class="timer-value">{{timerText}}</text>
-    </view>
-  </view>
-</view>
 
+    <view class="question-content">
+      <!-- 固定旁白文字 -->
+      <view class="instruction-text">现在，你有15秒钟的时间阅读这四个问题。</view>
+
+      <!-- 当前题目（无题号） -->
+      <view class="question-item" wx:if="{{currentQuestion}}">
+        <view class="question-text">{{currentQuestion.content}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 播放音频倒计时 -->
+  <countdown-timer
+    id="audioTimer"
+    duration="{{currentAudioDuration}}"
+    label="{{currentStepText}}"
+    bind:finish="onAudioTimerFinish"
+    wx:if="{{showAudioTimer}}"
+  />
+
+  <!-- 录音倒计时 -->
+  <countdown-timer
+    id="recordingTimer"
+    duration="{{recordingDuration}}"
+    label="{{currentStepText}}"
+    allowEarlyStop="{{true}}"
+    bind:finish="onRecordingTimerFinish"
+    bind:earlystop="onEarlyStopRecording"
+    wx:if="{{showRecordingTimer}}"
+  />
+
+  <button wx:if="{{submitFailed}}" bindtap="retrySubmit">重新上传</button>
+</view>

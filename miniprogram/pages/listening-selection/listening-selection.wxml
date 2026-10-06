@@ -6,7 +6,7 @@
   <!-- 静态说明区域 -->
   <view class="content-wrapper" wx:if="{{!showContent}}">
     <view class="section-header">
-      <text class="section-title">二、信息获取(共10分)</text>
+      <text class="section-title">二、听选信息（共{{maxScore}}分）</text>
     </view>
 
     <view class="question-content">
@@ -18,7 +18,7 @@
   <!-- 动态内容区域 -->
   <view class="content-wrapper dynamic-content" wx:if="{{showContent}}">
     <view class="section-header">
-      <text class="section-title">二、信息获取(共10分)</text>
+      <text class="section-title">二、听选信息（共{{maxScore}}分）</text>
     </view>
 
     <!-- 旁白内容（带题目） -->
@@ -68,7 +68,9 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
+    bind:earlystop="onEarlyStopRecording"
     wx:if="{{showRecordingTimer}}"
   />
 </view>

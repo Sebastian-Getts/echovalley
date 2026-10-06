@@ -1,6 +1,13 @@
 // imitation-reading.ts
 import { getTranslation } from '../../utils/i18n'
 import {
+  PRACTICE_RULES,
+  findMissingPracticeResources,
+  showPracticeResourceError,
+} from '../../utils/practice-rules'
+import { ensureRecordPermission, playRecordingCue } from '../../utils/recording-flow'
+import { finishExamQuestion } from '../../utils/exam-flow'
+import {
   getQuestionDetail,
   getPresignedAudioUrl,
   getOrCreateSession,
@@ -8,15 +15,17 @@ import {
   completeSession,
   submitAnswer,
   uploadAudio,
-  ApiError
+  ApiError,
 } from '../../utils/api'
 
 Page({
   data: {
     questionId: 0,
     sessionId: 0,
+    examId: 0,
     questionTitle: '',
     questionContent: '',
+    maxScore: PRACTICE_RULES.imitation.maxScore,
     prefaceAudioUrl: '', // 旁白语音URL
     contentAudioUrl: '', // 短文音频URL
     // 四阶段控制
@@ -27,14 +36,17 @@ Page({
     showPhase4Timer: false,
     phase1Duration: 15, // 旁白播放15秒
     phase2Duration: 15, // 短文播放15秒
-    phase3Duration: 10, // 准备录音10秒
-    phase4Duration: 15  // 录音15秒
+    phase3Duration: PRACTICE_RULES.imitation.preparationSeconds,
+    phase4Duration: PRACTICE_RULES.imitation.recordingSeconds,
+    submitting: false,
+    completing: false,
   },
 
   // 录音管理器
   recorderManager: null as any,
   // 音频播放器
   innerAudioContext: null as any,
+  recordingStopped: false,
 
   onLoad(options: any) {
     // 初始化录音管理器
@@ -49,13 +61,17 @@ Page({
 
     // 获取题目ID
     const questionId = options.questionId ? parseInt(options.questionId, 10) : 0
+    const examId = options.examId ? parseInt(options.examId, 10) : 0
+    const sessionId = options.sessionId ? parseInt(options.sessionId, 10) : 0
     if (!questionId) {
       wx.showToast({ title: '题目ID无效', icon: 'none' })
-      setTimeout(() => { wx.navigateBack() }, 1500)
+      setTimeout(() => {
+        wx.navigateBack()
+      }, 1500)
       return
     }
 
-    this.setData({ questionId })
+    this.setData({ questionId, examId, sessionId })
 
     this.loadLanguage()
     this.loadQuestionDetail()
@@ -70,7 +86,7 @@ Page({
     const language = wx.getStorageSync('language') || 'en'
     getTranslation(language)
     wx.setNavigationBarTitle({
-      title: language === 'zh' ? '模仿朗读' : 'Imitation Reading'
+      title: language === 'zh' ? '模仿朗读' : 'Imitation Reading',
     })
   },
 
@@ -96,7 +112,10 @@ Page({
           if (question.content_json) {
             contentText = question.content_json.content || ''
             contentAudioUrl = question.content_json.audio_url || ''
-            if (question.content_json.duration !== undefined && question.content_json.duration !== null) {
+            if (
+              question.content_json.duration !== undefined &&
+              question.content_json.duration !== null
+            ) {
               contentAudioDuration = question.content_json.duration
             }
           }
@@ -111,22 +130,25 @@ Page({
           prefaceAudioUrl: prefaceAudioUrl,
           contentAudioUrl: contentAudioUrl,
           phase1Duration: Math.ceil(prefaceAudioDuration),
-          phase2Duration: Math.ceil(contentAudioDuration)
+          phase2Duration: Math.ceil(contentAudioDuration),
         })
 
         wx.hideLoading()
 
-        if (!prefaceAudioUrl) {
-          wx.showModal({
-            title: '提示',
-            content: '旁白语音不存在，请联系管理员',
-            showCancel: false,
-            success: () => { wx.navigateBack() }
-          })
+        const missing = findMissingPracticeResources([
+          { label: '题目正文', value: contentText },
+          { label: '题型说明音频', value: prefaceAudioUrl },
+          { label: '正文音频', value: contentAudioUrl },
+        ])
+        if (missing.length > 0) {
+          showPracticeResourceError(missing)
           return
         }
 
         // 获取或创建 session
+        if (this.data.examId && this.data.sessionId) {
+          return { session_id: this.data.sessionId, status: 0, answer_count: 0 }
+        }
         return getOrCreateSession(this.data.questionId)
       })
       .then((sessionData: any) => {
@@ -138,38 +160,44 @@ Page({
           const language = wx.getStorageSync('language') || 'en'
           wx.showModal({
             title: language === 'zh' ? '提示' : 'Notice',
-            content: language === 'zh' ? '该题目已做过，要重新开始，原记录会清除。' : 'This question has been completed. Starting over will clear previous records.',
+            content:
+              language === 'zh'
+                ? '该题目已做过，要重新开始，原记录会清除。'
+                : 'This question has been completed. Starting over will clear previous records.',
             showCancel: true,
             cancelText: language === 'zh' ? '返回' : 'Back',
             confirmText: language === 'zh' ? '确认' : 'Confirm',
-            success: (res) => {
+            success: res => {
               if (res.confirm) {
                 this.doResetAndStart()
               } else if (res.cancel) {
                 wx.navigateBack()
               }
-            }
+            },
           })
         } else if (sessionData.has_answer_record && sessionData.answer_count > 0) {
           // 有部分记录，统一重新开始
           const language = wx.getStorageSync('language') || 'en'
           wx.showModal({
             title: language === 'zh' ? '提示' : 'Notice',
-            content: language === 'zh' ? '该题目已做过，要重新开始，原记录会清除。' : 'This question has been completed. Starting over will clear previous records.',
+            content:
+              language === 'zh'
+                ? '该题目已做过，要重新开始，原记录会清除。'
+                : 'This question has been completed. Starting over will clear previous records.',
             showCancel: true,
             cancelText: language === 'zh' ? '返回' : 'Back',
             confirmText: language === 'zh' ? '确认' : 'Confirm',
-            success: (res) => {
+            success: res => {
               if (res.confirm) {
                 this.doResetAndStart()
               } else if (res.cancel) {
                 wx.navigateBack()
               }
-            }
+            },
           })
         } else {
           // 新建 session，直接开始
-          this.startPhase1()
+          this.ensurePermissionAndStart()
         }
       })
       .catch((error: any) => {
@@ -179,7 +207,9 @@ Page({
         let msg = language === 'zh' ? '加载失败' : 'Load failed'
         if (error instanceof ApiError) msg = error.message || msg
         wx.showToast({ title: msg, icon: 'none', duration: 2000 })
-        setTimeout(() => { wx.navigateBack() }, 2000)
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 2000)
       })
   },
 
@@ -190,13 +220,19 @@ Page({
         console.log('[Imitation Reading] Session reset:', res)
         this.setData({ sessionId: res.session_id })
         wx.hideLoading()
-        this.startPhase1()
+        this.ensurePermissionAndStart()
       })
       .catch((err: any) => {
         console.error('[Imitation Reading] Reset error:', err)
         wx.hideLoading()
         wx.showToast({ title: '重置失败', icon: 'none' })
       })
+  },
+
+  ensurePermissionAndStart() {
+    ensureRecordPermission()
+      .then(() => this.startPhase1())
+      .catch(() => wx.navigateBack())
   },
 
   startPhase1() {
@@ -217,7 +253,7 @@ Page({
       showPhase1Timer: false,
       showPhase2Timer: false,
       showPhase3Timer: true,
-      showPhase4Timer: false
+      showPhase4Timer: false,
     })
     setTimeout(() => {
       const timer = this.selectComponent('#phase3Timer')
@@ -226,6 +262,7 @@ Page({
   },
 
   onPhase1Finish() {
+    if (this.data.currentPhase !== 1) return
     console.log('[Imitation Reading] Phase 1 finished, starting phase 2')
     this.cleanupAudio()
     this.setData({ currentPhase: 2, showPhase1Timer: false, showPhase2Timer: true })
@@ -238,7 +275,9 @@ Page({
             title: '提示',
             content: '短文音频不存在，请联系管理员',
             showCancel: false,
-            success: () => { wx.navigateBack() }
+            success: () => {
+              wx.navigateBack()
+            },
           })
           return
         }
@@ -247,11 +286,19 @@ Page({
     }, 100)
   },
 
+  // 音频阶段以实际播放结束为准；倒计时仅作视觉提示，避免音频偏长时提前切段。
+  onAudioTimerVisualFinish() {},
+
   onPhase2Finish() {
+    if (this.data.currentPhase !== 2) return
     console.log('[Imitation Reading] Phase 2 finished, starting phase 3')
     this.cleanupAudio()
     const language = wx.getStorageSync('language') || 'en'
-    wx.showToast({ title: language === 'zh' ? '即将开始准备' : 'Get ready', icon: 'none', duration: 1500 })
+    wx.showToast({
+      title: language === 'zh' ? '即将开始准备' : 'Get ready',
+      icon: 'none',
+      duration: 1500,
+    })
     this.setData({ currentPhase: 3, showPhase2Timer: false, showPhase3Timer: true })
     setTimeout(() => {
       const timer = this.selectComponent('#phase3Timer')
@@ -260,13 +307,19 @@ Page({
   },
 
   onPhase3Finish() {
+    if (this.data.currentPhase !== 3) return
     console.log('[Imitation Reading] Phase 3 finished, starting phase 4')
     const language = wx.getStorageSync('language') || 'en'
-    wx.showToast({ title: language === 'zh' ? '开始录音' : 'Start recording', icon: 'none', duration: 1500 })
+    wx.showToast({
+      title: language === 'zh' ? '开始录音' : 'Start recording',
+      icon: 'none',
+      duration: 1500,
+    })
     this.setData({ currentPhase: 4, showPhase3Timer: false, showPhase4Timer: true })
-    setTimeout(() => {
+    setTimeout(async () => {
       const timer = this.selectComponent('#phase4Timer')
       if (timer) {
+        await playRecordingCue('start')
         timer.startTimer()
         this.startRecording()
       }
@@ -274,9 +327,9 @@ Page({
   },
 
   onPhase4Finish() {
+    if (this.data.currentPhase !== 4) return
     console.log('[Imitation Reading] Phase 4 finished, stopping recording')
     this.stopRecording()
-    this.cleanupRecorder()
     this.cleanupAudio()
   },
 
@@ -286,9 +339,13 @@ Page({
       console.log('[Imitation Reading] Recording started')
     })
     recorderManager.onStop((res: any) => {
+      this.recordingStopped = true
       console.log('[Imitation Reading] Recording stopped', res)
+      this.setData({ showPhase4Timer: false })
       const { tempFilePath, duration } = res
-      this.handleRecordingComplete(tempFilePath, Math.ceil(duration / 1000))
+      playRecordingCue('stop').then(() => {
+        this.handleRecordingComplete(tempFilePath, Math.ceil(duration / 1000))
+      })
     })
     recorderManager.onError((err: any) => {
       console.error('[Imitation Reading] Recording error:', err)
@@ -299,8 +356,10 @@ Page({
   },
 
   handleRecordingComplete(tempFilePath: string, duration: number) {
+    if (!tempFilePath || this.data.submitting || this.data.completing) return
     const language = wx.getStorageSync('language') || 'en'
     const studentDbId = wx.getStorageSync('studentDbId') || 0
+    this.setData({ submitting: true })
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
 
     // 1. 上传录音
@@ -311,7 +370,7 @@ Page({
         return submitAnswer(studentDbId, {
           session_id: this.data.sessionId,
           question_id: this.data.questionId,
-          answers: [{ audio_url: uploadRes.audio_url, duration }]
+          answers: [{ audio_url: uploadRes.audio_url, duration }],
         })
       })
       .then((submitRes: any) => {
@@ -320,20 +379,33 @@ Page({
         wx.showToast({
           title: language === 'zh' ? '录音完成' : 'Recording completed',
           icon: 'success',
-          duration: 2000
+          duration: 2000,
         })
+        this.setData({ submitting: false, completing: true })
         // 3. 标记 session 完成
-        return completeSession(this.data.questionId)
+        return this.data.examId
+          ? finishExamQuestion(this.data.questionId)
+          : completeSession(this.data.questionId)
       })
       .then(() => {
-        setTimeout(() => { wx.navigateBack() }, 2000)
+        if (this.data.examId) return
+        this.setData({ completing: false })
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 2000)
       })
       .catch((err: any) => {
         console.error('[Imitation Reading] Error:', err)
         wx.hideLoading()
-        wx.showToast({
-          title: language === 'zh' ? '提交失败，请重试' : 'Submit failed, please retry',
-          icon: 'none'
+        this.setData({ submitting: false, completing: false })
+        wx.showModal({
+          title: language === 'zh' ? '提交失败' : 'Submit failed',
+          content:
+            language === 'zh' ? '录音已保留，是否重新上传？' : 'Recording saved. Retry upload?',
+          confirmText: language === 'zh' ? '重试' : 'Retry',
+          success: res => {
+            if (res.confirm) this.handleRecordingComplete(tempFilePath, duration)
+          },
         })
       })
   },
@@ -343,29 +415,26 @@ Page({
       console.error('[Imitation Reading] RecorderManager not initialized')
       return
     }
-    const language = wx.getStorageSync('language') || 'en'
-    wx.authorize({
-      scope: 'scope.record',
-      success: () => {
-        console.log('[Imitation Reading] Recording authorized')
-        this.recorderManager.start({
-          duration: 15000,
-          format: 'mp3',
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          encodeBitRate: 48000,
-          frameSize: 50
-        })
-      },
-      fail: () => {
-        console.error('[Imitation Reading] Recording authorization denied')
-        wx.showToast({ title: language === 'zh' ? '需要录音权限' : 'Permission required', icon: 'none' })
-      }
+    this.recordingStopped = false
+    this.recorderManager.start({
+      duration: PRACTICE_RULES.imitation.recordingSeconds * 1000,
+      format: 'mp3',
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      encodeBitRate: 48000,
+      frameSize: 50,
     })
   },
 
   stopRecording() {
-    if (this.recorderManager) this.recorderManager.stop()
+    if (!this.recorderManager || this.recordingStopped) return
+    this.recordingStopped = true
+    this.recorderManager.stop()
+  },
+
+  onEarlyStopRecording() {
+    this.setData({ showPhase4Timer: false })
+    this.stopRecording()
   },
 
   playAudio(audioUrl: string, onEnded?: () => void) {
@@ -378,8 +447,12 @@ Page({
         const innerAudioContext = wx.createInnerAudioContext()
         this.innerAudioContext = innerAudioContext
         innerAudioContext.src = response.url
-        innerAudioContext.onCanplay(() => { wx.hideLoading() })
-        innerAudioContext.onPlay(() => { console.log('[Imitation Reading] Audio playing') })
+        innerAudioContext.onCanplay(() => {
+          wx.hideLoading()
+        })
+        innerAudioContext.onPlay(() => {
+          console.log('[Imitation Reading] Audio playing')
+        })
         innerAudioContext.onEnded(() => {
           console.log('[Imitation Reading] Audio ended')
           if (onEnded) onEnded()
@@ -392,7 +465,9 @@ Page({
             title: language === 'zh' ? '错误' : 'Error',
             content: language === 'zh' ? '音频播放失败' : 'Playback failed',
             showCancel: false,
-            success: () => { wx.navigateBack() }
+            success: () => {
+              wx.navigateBack()
+            },
           })
         })
         innerAudioContext.play()
@@ -405,7 +480,9 @@ Page({
           title: language === 'zh' ? '错误' : 'Error',
           content: language === 'zh' ? '获取音频链接失败' : 'Failed to get audio URL',
           showCancel: false,
-          success: () => { wx.navigateBack() }
+          success: () => {
+            wx.navigateBack()
+          },
         })
       })
   },
@@ -420,5 +497,5 @@ Page({
 
   cleanupRecorder() {
     if (this.recorderManager) this.recorderManager.stop()
-  }
+  },
 })

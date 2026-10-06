@@ -6,7 +6,7 @@
   <!-- 第一部分和第二部分：共用白色底板 -->
   <view class="content-wrapper">
     <view class="section-header">
-      <text class="section-title">一、模仿朗读(共4分)</text>
+      <text class="section-title">一、模仿朗读（共{{maxScore}}分）</text>
     </view>
 
     <view class="question-content">
@@ -20,7 +20,7 @@
     id="phase1Timer"
     duration="{{phase1Duration}}"
     label="题目说明"
-    bind:finish="onPhase1Finish"
+    bind:finish="onAudioTimerVisualFinish"
   wx:if="{{showPhase1Timer}}"
   />
 
@@ -29,7 +29,7 @@
     id="phase2Timer"
     duration="{{phase2Duration}}"
     label="播放录音"
-    bind:finish="onPhase2Finish"
+    bind:finish="onAudioTimerVisualFinish"
   wx:if="{{showPhase2Timer}}"
   />
 
@@ -47,8 +47,9 @@
     id="phase4Timer"
     duration="{{phase4Duration}}"
     label="开始录音"
+    allowEarlyStop="{{true}}"
     bind:finish="onPhase4Finish"
+    bind:earlystop="onEarlyStopRecording"
   wx:if="{{showPhase4Timer}}"
   />
 </view>
-

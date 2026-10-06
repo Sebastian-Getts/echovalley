@@ -1,213 +1,381 @@
 // question-answering.ts
 import { getTranslation } from '../../utils/i18n'
-import { getPracticeQuestions, getQuestionDetail, ApiError } from '../../utils/api'
+import {
+  PRACTICE_RULES,
+  findMissingPracticeResources,
+  showPracticeResourceError,
+} from '../../utils/practice-rules'
+import { ensureRecordPermission } from '../../utils/recording-flow'
+import {
+  getQuestionDetail,
+  getPresignedAudioUrl,
+  getOrCreateSession,
+  resetSession,
+  ApiError,
+} from '../../utils/api'
 
 Page({
   data: {
-    questionId: 0, // 主题目ID
+    questionId: 0,
+    sessionId: 0,
+    examId: 0,
     questionTitle: '',
-    questions: [] as any[], // 四个问题（从当前题目的 content_json.questions 中获取）
-    isPaused: false, // false=播放中(显示⏸), true=暂停(显示▶)
-    timer: 10, // 倒计时10秒
-    timerText: '10秒',
-    progressAngle: 0, // 进度条旋转角度 (0-360度)
-    timerInterval: null as any
+    maxScore: PRACTICE_RULES.answering.maxScore,
+    // 四个问题（从 t_questions 获取）
+    questions: [] as any[],
+    // 旁白音频信息（从 t_question_types 获取）
+    prefaceAudioUrl: '',
+    prefaceDuration: 15,
+    passageAudioUrl: '',
+    passageDuration: 15,
+    // UI显示状态
+    showContent: false,
+    showAudioTimer: false, // 旁白音频/短文音频倒计时
+    showReadingTimer: false, // 阅读题目倒计时
+    currentAudioDuration: 0,
+    readingDuration: PRACTICE_RULES.answering.readingSeconds,
+    currentStepText: '',
+    currentPhase: 0, // 0=初始, 1=题目说明(旁白音频), 2=阅读题目, 3=播放短文
   },
 
+  innerAudioContext: null as any,
+
   onLoad(options: any) {
-    // 检查登录状态
     const isLoggedIn = wx.getStorageSync('isLoggedIn')
     if (!isLoggedIn) {
-      wx.redirectTo({
-        url: '/pages/login/login'
-      })
+      wx.redirectTo({ url: '/pages/login/login' })
       return
     }
 
-    // 获取题目ID
     const questionId = options.questionId ? parseInt(options.questionId, 10) : 0
-    
+    const examId = options.examId ? parseInt(options.examId, 10) : 0
+    const sessionId = options.sessionId ? parseInt(options.sessionId, 10) : 0
     if (!questionId) {
-      wx.showToast({
-        title: '题目ID无效',
-        icon: 'none'
-      })
+      wx.showToast({ title: '题目ID无效', icon: 'none' })
       setTimeout(() => {
         wx.navigateBack()
       }, 1500)
       return
     }
 
-    this.setData({
-      questionId
-    })
-
+    this.setData({ questionId, examId, sessionId })
     this.loadLanguage()
-    this.loadQuestions()
-    this.startTimer()
+    this.loadQuestionDetail()
   },
 
   onUnload() {
-    // 清除定时器
-    this.stopTimer()
+    this.cleanupAudio()
   },
 
   loadLanguage() {
     const language = wx.getStorageSync('language') || 'en'
-    const lang = getTranslation(language)
-    
-    // 动态设置导航栏标题
+    getTranslation(language)
     wx.setNavigationBarTitle({
-      title: language === 'zh' ? '回答问题' : 'Question Answering'
+      title: language === 'zh' ? '回答问题' : 'Question Answering',
     })
   },
 
-  loadQuestions() {
-    wx.showLoading({
-      title: '加载中...',
-      mask: true
-    })
+  loadQuestionDetail() {
+    wx.showLoading({ title: '加载中...', mask: true })
 
-    // 获取当前题目详情，从 content_json.questions 中提取4个问题
     getQuestionDetail(this.data.questionId)
-      .then((questionDetail: any) => {
-        console.log('[Question Answering] Question detail:', questionDetail)
-        
+      .then((question: any) => {
+        console.log('[Question Answering] Question detail:', question)
+
         // 解析 content_json
-        let contentJson = questionDetail.content_json
+        let contentJson = question.content_json || {}
         if (typeof contentJson === 'string') {
           try {
             contentJson = JSON.parse(contentJson)
           } catch (e) {
             console.error('[Question Answering] Failed to parse content_json:', e)
-            throw new Error('题目数据格式错误')
           }
         }
-        
-        // 从 content_json.questions 中提取4个问题
-        // 根据数据库结构，question_type=3 的 content_json 格式：
-        // {
-        //   "text": {...},
-        //   "questions": [
-        //     {"content": "问题1", "audio_url": "..."},
-        //     {"content": "问题2", "audio_url": "..."},
-        //     {"content": "问题3", "audio_url": "..."},
-        //     {"content": "问题4", "audio_url": "..."}
-        //   ]
-        // }
-        if (!contentJson || !contentJson.questions || !Array.isArray(contentJson.questions)) {
-          throw new Error('题目数据格式错误：缺少 questions 字段')
-        }
-        
-        const questions = contentJson.questions.slice(0, 4) // 确保只取前4个问题
-        
-        if (questions.length < 4) {
-          console.warn('[Question Answering] 题目中的问题数量少于4个:', questions.length)
-        }
-        
-        // 格式化问题数据
-        const formattedQuestions = questions.map((q: any, index: number) => {
-          return {
-            id: index + 1, // 使用索引作为ID
-            question: q.content || q.question || `问题${index + 1}`, // 优先使用 content 字段
-            audio_url: q.audio_url || ''
-          }
-        })
+
+        // 获取四个问题
+        const questions = contentJson.questions || []
+
+        // 获取旁白音频（从 preface_items 获取，如同听选信息）
+        const prefaceItems = question.preface_items || []
+        // 旁白音频取第一个（如果有的话）
+        const prefaceItem = prefaceItems[0] || {}
+        const prefaceAudioUrl = prefaceItem.audio_url || ''
+        const prefaceDuration = prefaceItem.duration || 15
+
+        // 获取短文音频（从 text 字段获取）
+        const passageAudioUrl = contentJson.text?.audio_url || ''
+        const passageDuration = contentJson.text?.duration || 15
 
         this.setData({
-          questions: formattedQuestions,
-          questionTitle: questionDetail.title || ''
+          questionTitle: question.title || '',
+          questions,
+          prefaceAudioUrl,
+          prefaceDuration,
+          passageAudioUrl,
+          passageDuration,
         })
 
         wx.hideLoading()
-      })
-      .catch((error) => {
-        console.error('[Question Answering] Load questions error:', error)
-        wx.hideLoading()
 
-        const language = wx.getStorageSync('language') || 'en'
-        let errorMessage = language === 'zh' 
-          ? '加载题目失败，请稍后重试' 
-          : 'Failed to load questions, please try again later'
-
-        if (error instanceof ApiError) {
-          errorMessage = error.message || errorMessage
-        } else if (error.message) {
-          errorMessage = error.message
+        const missing = findMissingPracticeResources([
+          { label: '题型说明音频', value: prefaceAudioUrl },
+          { label: '短文音频', value: passageAudioUrl },
+          {
+            label: `${PRACTICE_RULES.answering.questionCount} 个问题及音频`,
+            value:
+              questions.length === PRACTICE_RULES.answering.questionCount &&
+              questions.every((item: any) => item?.content && item?.audio_url),
+          },
+        ])
+        if (missing.length > 0) {
+          showPracticeResourceError(missing)
+          return
         }
 
-        wx.showToast({
-          title: errorMessage,
-          icon: 'none',
-          duration: 2000
-        })
+        // 显示内容，开始流程
+        this.setData({ showContent: true })
 
+        // 获取或创建 session
+        if (this.data.examId && this.data.sessionId) {
+          return { session_id: this.data.sessionId, status: 0 }
+        }
+        return getOrCreateSession(this.data.questionId)
+      })
+      .then((sessionData: any) => {
+        if (!sessionData) return // 用户选择返回
+
+        console.log('[Question Answering] Session:', sessionData)
+        this.setData({ sessionId: sessionData.session_id })
+
+        if (sessionData.status === 1) {
+          // 已完成，询问是否重新开始
+          const language = wx.getStorageSync('language') || 'en'
+          wx.showModal({
+            title: language === 'zh' ? '提示' : 'Notice',
+            content:
+              language === 'zh'
+                ? '该题目已做过，要重新开始。'
+                : 'This question has been completed. Starting over will clear previous records.',
+            showCancel: true,
+            cancelText: language === 'zh' ? '返回' : 'Back',
+            confirmText: language === 'zh' ? '确认' : 'Confirm',
+            success: res => {
+              if (res.confirm) {
+                this.doResetAndStart()
+              } else {
+                wx.navigateBack()
+              }
+            },
+          })
+          return
+        }
+
+        // 新建 session，开始流程
+        this.ensurePermissionAndStart()
+      })
+      .catch((error: any) => {
+        console.error('[Question Answering] Load error:', error)
+        wx.hideLoading()
+        const language = wx.getStorageSync('language') || 'en'
+        let msg = language === 'zh' ? '加载失败' : 'Load failed'
+        if (error instanceof ApiError) msg = error.message || msg
+        wx.showToast({ title: msg, icon: 'none', duration: 2000 })
         setTimeout(() => {
           wx.navigateBack()
         }, 2000)
       })
   },
 
-  startTimer() {
-    // 设置定时器，每秒更新一次
-    const that = this
-    const interval = setInterval(() => {
-      that.updateTimer()
-    }, 1000)
-    
+  doResetAndStart() {
+    wx.showLoading({ title: '加载中...', mask: true })
+    resetSession(this.data.questionId)
+      .then((res: any) => {
+        console.log('[Question Answering] Session reset:', res)
+        this.setData({ sessionId: res.session_id, showContent: true })
+        wx.hideLoading()
+        this.ensurePermissionAndStart()
+      })
+      .catch((err: any) => {
+        console.error('[Question Answering] Reset error:', err)
+        wx.hideLoading()
+        wx.showToast({ title: '重置失败', icon: 'none' })
+      })
+  },
+
+  ensurePermissionAndStart() {
+    ensureRecordPermission()
+      .then(() => this.startPrefaceAudio())
+      .catch(() => wx.navigateBack())
+  },
+
+  // 阶段1：播放旁白音频，显示"题目说明"
+  startPrefaceAudio() {
+    const { prefaceAudioUrl, prefaceDuration } = this.data
+
     this.setData({
-      timerInterval: interval
+      currentPhase: 1,
+      currentStepText: '题目说明',
+      currentAudioDuration: prefaceDuration,
+      showAudioTimer: true,
     })
-    // 立即更新一次，开始倒计时
-    this.updateTimer()
+
+    setTimeout(() => {
+      const timer = this.selectComponent('#audioTimer')
+      if (timer) timer.startTimer()
+    }, 100)
+
+    if (!prefaceAudioUrl) {
+      // 没有旁白音频，直接进入阅读阶段
+      this.setData({ showAudioTimer: false })
+      this.onPrefaceAudioEnd()
+      return
+    }
+
+    this.playAudio(prefaceAudioUrl, () => {
+      this.setData({ showAudioTimer: false })
+      this.onPrefaceAudioEnd()
+    })
   },
 
-  stopTimer() {
-    if (this.data.timerInterval) {
-      clearInterval(this.data.timerInterval)
-      this.setData({
-        timerInterval: null
-      })
-    }
+  onPrefaceAudioEnd() {
+    if (this.data.currentPhase !== 1) return
+    // 旁白音频结束，进入阅读题目阶段
+    this.setData({ showAudioTimer: false })
+    this.startReading()
   },
 
-  updateTimer() {
-    if (this.data.isPaused) {
-      return // 如果暂停，不更新计时
-    }
-    
-    let timer = this.data.timer
-    if (timer > 0) {
-      timer--
-      // 计算进度角度：从10秒到0秒，角度从0度到360度
-      const progress = (10 - timer) / 10
-      const progressAngle = progress * 360
-      
-      this.setData({
-        timer: timer,
-        timerText: `${timer}秒`,
-        progressAngle: progressAngle
-      })
-    } else {
-      // 倒计时结束，跳转到第一题
-      this.stopTimer()
-      this.setData({
-        timerText: '0秒',
-        progressAngle: 360
-      })
-      
-      // 跳转到第一题展示页面
-      wx.redirectTo({
-        url: `/pages/question-answering-item/question-answering-item?questionId=${this.data.questionId}&questionIndex=0`
-      })
-    }
-  },
+  // 阶段2：阅读题目，显示"阅读题目"
+  startReading() {
+    console.log('[Question Answering] Start reading')
 
-  onTimerToggle() {
-    // 切换播放/暂停状态（目前只是UI效果，后续可以添加音频播放功能）
     this.setData({
-      isPaused: !this.data.isPaused
+      currentPhase: 2,
+      currentStepText: '阅读题目',
+      showReadingTimer: true,
+      readingDuration: PRACTICE_RULES.answering.readingSeconds,
     })
-  }
+
+    setTimeout(() => {
+      const timer = this.selectComponent('#readingTimer')
+      if (timer) timer.startTimer()
+    }, 100)
+  },
+
+  onReadingTimerFinish() {
+    if (this.data.currentPhase !== 2) return
+    console.log('[Question Answering] Reading finished')
+    this.setData({ showReadingTimer: false })
+    this.startPassageAudio()
+  },
+
+  // 阶段3：播放短文音频，显示"正在播放信息"
+  startPassageAudio() {
+    const { passageAudioUrl, passageDuration } = this.data
+
+    this.setData({
+      currentPhase: 3,
+      currentStepText: '正在播放信息',
+      currentAudioDuration: passageDuration * PRACTICE_RULES.answering.passagePlayCount,
+      showAudioTimer: true,
+    })
+
+    setTimeout(() => {
+      const timer = this.selectComponent('#audioTimer')
+      if (timer) timer.startTimer()
+    }, 100)
+
+    if (!passageAudioUrl) {
+      wx.showModal({
+        title: '题目资源不完整',
+        content: '短文音频不存在，请联系管理员。',
+        showCancel: false,
+        success: () => wx.navigateBack(),
+      })
+      return
+    }
+
+    this.playAudioTimes(passageAudioUrl, PRACTICE_RULES.answering.passagePlayCount, () => {
+      this.setData({ showAudioTimer: false })
+      this.onPassageAudioEnd()
+    })
+  },
+
+  playAudioTimes(audioUrl: string, count: number, onEnded: () => void) {
+    let played = 0
+    const playNext = () => {
+      if (played >= count) {
+        onEnded()
+        return
+      }
+      played += 1
+      this.playAudio(audioUrl, playNext)
+    }
+    playNext()
+  },
+
+  onPassageAudioEnd() {
+    if (this.data.currentPhase !== 3) return
+    console.log('[Question Answering] Passage audio ended, navigate to question 1')
+    // 短文播放完毕，跳转到第一题
+    wx.redirectTo({
+      url: `/pages/question-answering-item/question-answering-item?questionId=${this.data.questionId}&questionIndex=0&sessionId=${this.data.sessionId}&examId=${this.data.examId}`,
+    })
+  },
+
+  playAudio(audioUrl: string, onEnded?: () => void) {
+    console.log('[Question Answering] Playing audio:', audioUrl)
+    this.cleanupAudio()
+    wx.showLoading({ title: '加载音频...', mask: true })
+    getPresignedAudioUrl(audioUrl)
+      .then((response: any) => {
+        console.log('[Question Answering] Got presigned URL:', response.url)
+        const innerAudioContext = wx.createInnerAudioContext()
+        this.innerAudioContext = innerAudioContext
+        innerAudioContext.src = response.url
+        innerAudioContext.onCanplay(() => {
+          wx.hideLoading()
+        })
+        innerAudioContext.onPlay(() => {
+          console.log('[Question Answering] Audio playing')
+        })
+        innerAudioContext.onEnded(() => {
+          console.log('[Question Answering] Audio ended')
+          if (onEnded) onEnded()
+        })
+        innerAudioContext.onError((res: any) => {
+          console.error('[Question Answering] Audio play error:', res)
+          wx.hideLoading()
+          const language = wx.getStorageSync('language') || 'en'
+          wx.showModal({
+            title: language === 'zh' ? '错误' : 'Error',
+            content: language === 'zh' ? '音频播放失败' : 'Playback failed',
+            showCancel: false,
+          })
+        })
+        innerAudioContext.play()
+      })
+      .catch((error: any) => {
+        console.error('[Question Answering] Failed to get presigned URL:', error)
+        wx.hideLoading()
+        const language = wx.getStorageSync('language') || 'en'
+        wx.showModal({
+          title: language === 'zh' ? '错误' : 'Error',
+          content: language === 'zh' ? '获取音频链接失败' : 'Failed to get audio URL',
+          showCancel: false,
+        })
+      })
+  },
+
+  cleanupAudio() {
+    if (this.innerAudioContext) {
+      this.innerAudioContext.stop()
+      this.innerAudioContext.destroy()
+      this.innerAudioContext = null
+    }
+  },
+
+  onAudioTimerFinish() {
+    console.log('[Question Answering] Audio timer finished')
+    this.setData({ showAudioTimer: false })
+  },
 })
-

@@ -1,6 +1,13 @@
 // listening-selection.ts
 import { getTranslation } from '../../utils/i18n'
 import {
+  PRACTICE_RULES,
+  findMissingPracticeResources,
+  showPracticeResourceError,
+} from '../../utils/practice-rules'
+import { ensureRecordPermission, playRecordingCue } from '../../utils/recording-flow'
+import { finishExamQuestion } from '../../utils/exam-flow'
+import {
   getQuestionDetail,
   getPresignedAudioUrl,
   getOrCreateSession,
@@ -8,26 +15,28 @@ import {
   completeSession,
   submitAnswer,
   uploadAudio,
-  ApiError
+  ApiError,
 } from '../../utils/api'
 
 Page({
   data: {
     questionId: 0,
     sessionId: 0,
+    examId: 0,
     questionTitle: '',
+    maxScore: PRACTICE_RULES.listening.maxScore,
     // 旁白数据 (4个元素)
     prefaceItems: [] as any[],
     // 题目内容 (3段对话)
     dialogues: [] as any[],
     // 阶段控制
-    currentPhase: 0,  // 0=初始准备, 1-22=音频流程, 23=完成
+    currentPhase: 0, // 0=初始准备, 1-22=音频流程, 23=完成
     // 当前进度索引
-    currentPrefaceIndex: 0,   // 当前播放的旁白索引 (0-3)
-    currentDialogIndex: 0,     // 当前对话索引 (0-2)
-    currentQuestionIndex: 0,   // 当前问题索引 (0-1)
+    currentPrefaceIndex: 0, // 当前播放的旁白索引 (0-3)
+    currentDialogIndex: 0, // 当前对话索引 (0-2)
+    currentQuestionIndex: 0, // 当前问题索引 (0-1)
     // 页面展示的当前内容（旁白2/3/4内容或题目内容）
-    currentContent: {} as any,  // 当前展示的内容对象
+    currentContent: {} as any, // 当前展示的内容对象
     currentContentType: 'preface' as 'preface' | 'question', // 当前内容类型
     // 页面内容显示开关
     showContent: false,
@@ -38,20 +47,23 @@ Page({
     showReadingTimer: false,
     showRecordingTimer: false,
     currentAudioDuration: 0,
-    readingDuration: 10,
-    recordingDuration: 8,
+    readingDuration: PRACTICE_RULES.listening.readingSeconds,
+    recordingDuration: PRACTICE_RULES.listening.recordingSeconds,
     // 当前状态描述
     currentStepText: '',
     // 调试信息
     debugLog: [] as string[],
     // 已提交的子题数量
-    answeredCount: 0
+    answeredCount: 0,
+    submitting: false,
+    completing: false,
   },
 
   // 录音管理器
   recorderManager: null as any,
   // 音频播放器
   innerAudioContext: null as any,
+  recordingStopped: false,
 
   onLoad(options: any) {
     this.initRecorder()
@@ -63,13 +75,17 @@ Page({
     }
 
     const questionId = options.questionId ? parseInt(options.questionId, 10) : 0
+    const examId = options.examId ? parseInt(options.examId, 10) : 0
+    const sessionId = options.sessionId ? parseInt(options.sessionId, 10) : 0
     if (!questionId) {
       wx.showToast({ title: '题目ID无效', icon: 'none' })
-      setTimeout(() => { wx.navigateBack() }, 1500)
+      setTimeout(() => {
+        wx.navigateBack()
+      }, 1500)
       return
     }
 
-    this.setData({ questionId })
+    this.setData({ questionId, examId, sessionId })
 
     this.loadLanguage()
     this.loadQuestionDetail()
@@ -84,7 +100,7 @@ Page({
     const language = wx.getStorageSync('language') || 'en'
     getTranslation(language)
     wx.setNavigationBarTitle({
-      title: language === 'zh' ? '听选信息' : 'Listening Selection'
+      title: language === 'zh' ? '听选信息' : 'Listening Selection',
     })
   },
 
@@ -109,32 +125,46 @@ Page({
         this.setData({
           questionTitle: question.title || '',
           prefaceItems,
-          dialogues
+          dialogues,
         })
 
         wx.hideLoading()
 
-        if (prefaceItems.length === 0) {
-          wx.showModal({
-            title: '提示',
-            content: '旁白数据不存在，请联系管理员',
-            showCancel: false,
-            success: () => { wx.navigateBack() }
+        const resourceChecks: any[] = [
+          {
+            label: `${PRACTICE_RULES.listening.dialogueCount + 1} 段固定说明音频`,
+            value:
+              prefaceItems.length === PRACTICE_RULES.listening.dialogueCount + 1 &&
+              prefaceItems.every((item: any) => item?.audio_url),
+          },
+          {
+            label: `${PRACTICE_RULES.listening.dialogueCount} 段对话`,
+            value: dialogues.length === PRACTICE_RULES.listening.dialogueCount,
+          },
+        ]
+        dialogues.forEach((dialogue: any, dialogIndex: number) => {
+          const questions = dialogue?.questions || []
+          resourceChecks.push({
+            label: `第 ${dialogIndex + 1} 段对话音频`,
+            value: dialogue?.text?.audio_url,
           })
-          return
-        }
-
-        if (dialogues.length === 0) {
-          wx.showModal({
-            title: '提示',
-            content: '题目数据不存在，请联系管理员',
-            showCancel: false,
-            success: () => { wx.navigateBack() }
+          resourceChecks.push({
+            label: `第 ${dialogIndex + 1} 段的 ${PRACTICE_RULES.listening.questionsPerDialogue} 个问题及音频`,
+            value:
+              questions.length === PRACTICE_RULES.listening.questionsPerDialogue &&
+              questions.every((item: any) => item?.content && item?.audio_url),
           })
+        })
+        const missing = findMissingPracticeResources(resourceChecks)
+        if (missing.length > 0) {
+          showPracticeResourceError(missing)
           return
         }
 
         // 获取或创建 session
+        if (this.data.examId && this.data.sessionId) {
+          return { session_id: this.data.sessionId, status: 0, answer_count: 0 }
+        }
         return getOrCreateSession(this.data.questionId)
       })
       .then((sessionData: any) => {
@@ -146,76 +176,45 @@ Page({
           const language = wx.getStorageSync('language') || 'en'
           wx.showModal({
             title: language === 'zh' ? '提示' : 'Notice',
-            content: language === 'zh' ? '该题目已做过，要重新开始，原记录会清除。' : 'This question has been completed. Starting over will clear previous records.',
+            content:
+              language === 'zh'
+                ? '该题目已做过，要重新开始，原记录会清除。'
+                : 'This question has been completed. Starting over will clear previous records.',
             showCancel: true,
             cancelText: language === 'zh' ? '返回' : 'Back',
             confirmText: language === 'zh' ? '确认' : 'Confirm',
-            success: (res) => {
+            success: res => {
               if (res.confirm) {
                 this.doResetAndStart()
               } else if (res.cancel) {
                 wx.navigateBack()
               }
-            }
+            },
           })
         } else if (sessionData.has_answer_record && sessionData.answer_count > 0) {
           // 有部分记录，统一重新开始
           const language = wx.getStorageSync('language') || 'en'
           wx.showModal({
             title: language === 'zh' ? '提示' : 'Notice',
-            content: language === 'zh' ? '该题目已做过，要重新开始，原记录会清除。' : 'This question has been completed. Starting over will clear previous records.',
+            content:
+              language === 'zh'
+                ? '该题目已做过，要重新开始，原记录会清除。'
+                : 'This question has been completed. Starting over will clear previous records.',
             showCancel: true,
             cancelText: language === 'zh' ? '返回' : 'Back',
             confirmText: language === 'zh' ? '确认' : 'Confirm',
-            success: (res) => {
+            success: res => {
               if (res.confirm) {
                 this.doResetAndStart()
               } else if (res.cancel) {
                 wx.navigateBack()
               }
-            }
+            },
           })
         } else {
           // 新建 session，直接开始播放旁白1
           // 页面初始显示旁白1内容
-          const prefaceItems = this.data.prefaceItems
-          const dialogues = this.data.dialogues
-          this.setData({
-            showContent: true,
-            currentContent: {
-              preface: prefaceItems[0],
-              questions: [],
-              dialogIndex: -1
-            },
-            currentContentType: 'preface',
-            currentGlobalQuestionIndex: 1
-          })
-          this.playPreface(0, () => {
-            // 旁白1播完，显示旁白2内容+第一道题
-            this.setData({
-              showContent: true,
-              currentContent: {
-                preface: prefaceItems[1],
-                questions: dialogues[0].questions || [],
-                dialogIndex: 0
-              },
-              currentContentType: 'preface',
-              currentGlobalQuestionIndex: 1
-            })
-            this.playPreface(1, () => {
-              // 旁白2播完，进入阅题，显示第一道题内容
-              this.setData({
-                showContent: true,
-                currentContent: {
-                  questions: dialogues[0].questions || [],
-                  title_content: prefaceItems[1].title_content || ''
-                },
-                currentContentType: 'question',
-                currentGlobalQuestionIndex: 1
-              })
-              this.startReading(0)
-            })
-          })
+          this.ensurePermissionAndStart()
         }
       })
       .catch((error: any) => {
@@ -225,7 +224,9 @@ Page({
         let msg = language === 'zh' ? '加载失败' : 'Load failed'
         if (error instanceof ApiError) msg = error.message || msg
         wx.showToast({ title: msg, icon: 'none', duration: 2000 })
-        setTimeout(() => { wx.navigateBack() }, 2000)
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 2000)
       })
   },
 
@@ -236,49 +237,54 @@ Page({
         console.log('[Listening Selection] Session reset:', res)
         this.setData({ sessionId: res.session_id, answeredCount: 0 })
         wx.hideLoading()
-        const prefaceItems = this.data.prefaceItems
-        const dialogues = this.data.dialogues
-        // 重置后重新开始：显示旁白1内容
-        this.setData({
-          showContent: true,
-          currentContent: {
-            preface: prefaceItems[0],
-            questions: [],
-            dialogIndex: -1
-          },
-          currentContentType: 'preface',
-          currentGlobalQuestionIndex: 1
-        })
-        this.playPreface(0, () => {
-          this.setData({
-            showContent: true,
-            currentContent: {
-              preface: prefaceItems[1],
-              questions: dialogues[0].questions || [],
-              dialogIndex: 0
-            },
-            currentContentType: 'preface',
-            currentGlobalQuestionIndex: 1
-          })
-          this.playPreface(1, () => {
-            this.setData({
-              showContent: true,
-              currentContent: {
-                questions: dialogues[0].questions || [],
-                title_content: prefaceItems[1].title_content || ''
-              },
-              currentContentType: 'question',
-              currentGlobalQuestionIndex: 1
-            })
-            this.startReading(0)
-          })
-        })
+        this.ensurePermissionAndStart()
       })
       .catch((err: any) => {
         console.error('[Listening Selection] Reset error:', err)
         wx.hideLoading()
         wx.showToast({ title: '重置失败', icon: 'none' })
       })
+  },
+
+  ensurePermissionAndStart() {
+    ensureRecordPermission()
+      .then(() => this.startFreshFlow())
+      .catch(() => wx.navigateBack())
+  },
+
+  startFreshFlow() {
+    const prefaceItems = this.data.prefaceItems
+    const dialogues = this.data.dialogues
+
+    // 第一段旁白是整题说明。此时继续保留页面上的完整静态说明，
+    // 避免在权限检查后立即切换两套条件渲染结构，导致文字闪现或短暂空白。
+    // 等旁白结束、真正进入第一段对话阅题时，再切换到动态题目内容。
+    this.setData({
+      showContent: false,
+      currentContent: {},
+      currentContentType: 'preface',
+      currentGlobalQuestionIndex: 1,
+    })
+    this.playPreface(0, () => {
+      this.setData({
+        currentContent: {
+          preface: prefaceItems[1],
+          questions: dialogues[0].questions || [],
+          dialogIndex: 0,
+        },
+        currentContentType: 'preface',
+      })
+      this.playPreface(1, () => {
+        this.setData({
+          currentContent: {
+            questions: dialogues[0].questions || [],
+            title_content: prefaceItems[1].title_content || '',
+          },
+          currentContentType: 'question',
+        })
+        this.startReading(0)
+      })
+    })
   },
 
   // 根据已回答数量恢复进度
@@ -290,7 +296,7 @@ Page({
     this.setData({
       currentDialogIndex: dialogIndex,
       currentQuestionIndex: questionIndex,
-      answeredCount
+      answeredCount,
     })
 
     // 跳到对应位置播放问题音频，然后开始录音
@@ -308,7 +314,7 @@ Page({
     }
 
     // 更新当前旁白索引（用于显示）
-    const prefaceIndex = dialogIndex + 1  // 当前对话对应的旁白索引
+    const prefaceIndex = dialogIndex + 1 // 当前对话对应的旁白索引
 
     const questions = dialogues[dialogIndex].questions || []
     if (questionIndex >= questions.length) {
@@ -316,7 +322,7 @@ Page({
       const nextDialogIndex = dialogIndex + 1
       if (nextDialogIndex < dialogues.length) {
         // 播放下一段对话旁白
-        const nextPrefaceIndex = dialogIndex + 2  // 0->2(旁白3), 1->3(旁白4)
+        const nextPrefaceIndex = dialogIndex + 2 // 0->2(旁白3), 1->3(旁白4)
         this.setData({ currentPrefaceIndex: nextPrefaceIndex })
         this.playPreface(nextPrefaceIndex, () => {
           this.setData({ currentDialogIndex: nextDialogIndex, currentQuestionIndex: 0 })
@@ -337,20 +343,20 @@ Page({
         currentContent: {
           preface: prefaceItems[prefaceIndex],
           questions: questions,
-          dialogIndex: dialogIndex
+          dialogIndex: dialogIndex,
         },
         currentContentType: 'preface',
-        currentGlobalQuestionIndex: globalBase
+        currentGlobalQuestionIndex: globalBase,
       })
     } else {
       this.setData({
         showContent: true,
         currentContent: {
           questions: questions,
-          title_content: prefaceItems[prefaceIndex].title_content || ''
+          title_content: prefaceItems[prefaceIndex].title_content || '',
         },
         currentContentType: 'question',
-        currentGlobalQuestionIndex: globalBase
+        currentGlobalQuestionIndex: globalBase,
       })
     }
 
@@ -361,7 +367,7 @@ Page({
       currentPhase: 30 + dialogIndex * 4 + questionIndex,
       currentStepText: '正在播放信息',
       currentAudioDuration: questions[questionIndex].duration || 5,
-      showAudioTimer: true
+      showAudioTimer: true,
     })
 
     setTimeout(() => {
@@ -396,7 +402,7 @@ Page({
       currentPhase: index + 1,
       currentStepText: '正在播放信息',
       currentAudioDuration: item.duration || 5,
-      showAudioTimer: true
+      showAudioTimer: true,
     })
 
     setTimeout(() => {
@@ -427,7 +433,7 @@ Page({
       currentDialogIndex: dialogIndex,
       currentQuestionIndex: 0,
       currentStepText: '阅题',
-      showReadingTimer: true
+      showReadingTimer: true,
     })
 
     setTimeout(() => {
@@ -451,16 +457,21 @@ Page({
     const dialogAudioUrl = dialogData.text?.audio_url
 
     if (!dialogAudioUrl) {
-      // 跳转到 question-answering-item 页面
-      this.jumpToQuestionAnswering(dialogIndex, 0)
+      wx.showModal({
+        title: '题目资源不完整',
+        content: '当前对话音频不存在，请联系管理员。',
+        showCancel: false,
+        success: () => wx.navigateBack(),
+      })
       return
     }
 
     this.setData({
       currentPhase: 20 + dialogIndex * 4,
       currentStepText: '正在播放信息',
-      currentAudioDuration: dialogData.text?.duration || 5,
-      showAudioTimer: true
+      currentAudioDuration:
+        (dialogData.text?.duration || 5) * PRACTICE_RULES.listening.dialoguePlayCount,
+      showAudioTimer: true,
     })
 
     setTimeout(() => {
@@ -468,18 +479,30 @@ Page({
       if (timer) timer.startTimer()
     }, 100)
 
-    this.playAudio(dialogAudioUrl, () => {
-      this.setData({ showAudioTimer: false })
-      // 播放完短文后，跳转到 question-answering-item 页面
-      this.jumpToQuestionAnswering(dialogIndex, 0)
+    this.playAudioTimes(dialogAudioUrl, PRACTICE_RULES.listening.dialoguePlayCount, () => {
+      this.setData({ showAudioTimer: false, currentQuestionIndex: 0 })
+      this.playQuestionAudio(0)
     })
+  },
+
+  playAudioTimes(audioUrl: string, count: number, onEnded: () => void) {
+    let played = 0
+    const playNext = () => {
+      if (played >= count) {
+        onEnded()
+        return
+      }
+      played += 1
+      this.playAudio(audioUrl, playNext)
+    }
+    playNext()
   },
 
   jumpToQuestionAnswering(dialogIndex: number, subIndex: number) {
     const prefaceItems = this.data.prefaceItems
     const titleContent = prefaceItems[dialogIndex + 1]?.title_content || ''
     wx.redirectTo({
-      url: `/pages/question-answering-item/question-answering-item?questionId=${this.data.questionId}&dialogueIndex=${dialogIndex}&subIndex=${subIndex}&titleContent=${encodeURIComponent(titleContent)}&sessionId=${this.data.sessionId}`
+      url: `/pages/question-answering-item/question-answering-item?questionId=${this.data.questionId}&dialogueIndex=${dialogIndex}&subIndex=${subIndex}&titleContent=${encodeURIComponent(titleContent)}&sessionId=${this.data.sessionId}`,
     })
   },
 
@@ -513,7 +536,7 @@ Page({
       currentQuestionIndex: questionIndex,
       currentStepText: '正在播放信息',
       currentAudioDuration: question.duration || 5,
-      showAudioTimer: true
+      showAudioTimer: true,
     })
 
     setTimeout(() => {
@@ -542,11 +565,12 @@ Page({
     this.setData({
       currentPhase: 100,
       currentStepText: '开始录音',
-      showRecordingTimer: true
+      showRecordingTimer: true,
     })
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const timer = this.selectComponent('#recordingTimer')
+      await playRecordingCue('start')
       if (timer) timer.startTimer()
       this.startRecordAudio()
     }, 100)
@@ -556,7 +580,12 @@ Page({
     const dialogIndex = this.data.currentDialogIndex
     const questionIndex = this.data.currentQuestionIndex
 
-    console.log('[Listening Selection] Recording finished, dialog:', dialogIndex, 'question:', questionIndex)
+    console.log(
+      '[Listening Selection] Recording finished, dialog:',
+      dialogIndex,
+      'question:',
+      questionIndex
+    )
     this.addDebugLog(`录音完成`)
 
     const dialogues = this.data.dialogues
@@ -571,10 +600,10 @@ Page({
         showContent: true,
         currentContent: {
           questions: dialogues[dialogIndex].questions || [],
-          title_content: prefaceItems[dialogIndex + 1].title_content || ''
+          title_content: prefaceItems[dialogIndex + 1].title_content || '',
         },
         currentContentType: 'question',
-        currentGlobalQuestionIndex: dialogIndex * 2 + 2
+        currentGlobalQuestionIndex: dialogIndex * 2 + 2,
       })
       this.playQuestionAudio(1)
     } else if (questionIndex === 1) {
@@ -589,10 +618,10 @@ Page({
           currentContent: {
             preface: prefaceItems[nextPrefaceIndex],
             questions: dialogues[nextDialogIndex].questions || [],
-            dialogIndex: nextDialogIndex
+            dialogIndex: nextDialogIndex,
           },
           currentContentType: 'preface',
-          currentGlobalQuestionIndex: nextDialogIndex * 2 + 1
+          currentGlobalQuestionIndex: nextDialogIndex * 2 + 1,
         })
         this.playPreface(nextPrefaceIndex, () => {
           this.startReading(nextDialogIndex)
@@ -604,6 +633,10 @@ Page({
   },
 
   onAllCompleted() {
+    const totalQuestions =
+      PRACTICE_RULES.listening.dialogueCount * PRACTICE_RULES.listening.questionsPerDialogue
+    if (this.data.completing || this.data.answeredCount < totalQuestions) return
+    this.setData({ completing: true })
     console.log('[Listening Selection] All completed!')
     this.addDebugLog('全部完成')
 
@@ -614,21 +647,32 @@ Page({
     wx.showToast({
       title: language === 'zh' ? '练习完成' : 'Practice completed',
       icon: 'success',
-      duration: 2000
+      duration: 2000,
     })
 
     // 标记 session 完成
-    completeSession(this.data.questionId)
+    const completion = this.data.examId
+      ? finishExamQuestion(this.data.questionId)
+      : completeSession(this.data.questionId)
+    completion
       .then(() => {
-        setTimeout(() => { wx.navigateBack() }, 2000)
+        if (this.data.examId) return
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 2000)
       })
       .catch(() => {
-        setTimeout(() => { wx.navigateBack() }, 2000)
+        this.setData({ completing: false })
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 2000)
       })
   },
 
   handleRecordingComplete(tempFilePath: string, duration: number) {
+    if (!tempFilePath || this.data.submitting || this.data.completing) return
     const language = wx.getStorageSync('language') || 'en'
+    this.setData({ submitting: true })
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
 
     uploadAudio(tempFilePath, this.data.questionId)
@@ -638,17 +682,18 @@ Page({
         return submitAnswer(studentDbId, {
           session_id: this.data.sessionId,
           question_id: this.data.questionId,
-          answers: [{ audio_url: uploadRes.audio_url, duration }]
+          answers: [{ audio_url: uploadRes.audio_url, duration }],
         })
       })
       .then((submitRes: any) => {
         console.log('[Listening Selection] Answer submitted:', submitRes)
         wx.hideLoading()
+        this.setData({ submitting: false })
         const language = wx.getStorageSync('language') || 'en'
         wx.showToast({
           title: language === 'zh' ? '已保存' : 'Saved',
           icon: 'none',
-          duration: 1000
+          duration: 1000,
         })
         // 继续下一题
         this.onRecordingFinish()
@@ -656,10 +701,16 @@ Page({
       .catch((err: any) => {
         console.error('[Listening Selection] Submit error:', err)
         wx.hideLoading()
+        this.setData({ submitting: false })
         const language = wx.getStorageSync('language') || 'en'
-        wx.showToast({
+        wx.showModal({
           title: language === 'zh' ? '提交失败' : 'Submit failed',
-          icon: 'none'
+          content:
+            language === 'zh' ? '录音已保留，是否重新上传？' : 'Recording saved. Retry upload?',
+          confirmText: language === 'zh' ? '重试' : 'Retry',
+          success: res => {
+            if (res.confirm) this.handleRecordingComplete(tempFilePath, duration)
+          },
         })
       })
   },
@@ -672,9 +723,13 @@ Page({
     })
 
     recorderManager.onStop((res: any) => {
+      this.recordingStopped = true
       console.log('[Listening Selection] Recording stopped', res)
+      this.setData({ showRecordingTimer: false })
       const { tempFilePath, duration } = res
-      this.handleRecordingComplete(tempFilePath, Math.ceil(duration / 1000))
+      playRecordingCue('stop').then(() => {
+        this.handleRecordingComplete(tempFilePath, Math.ceil(duration / 1000))
+      })
     })
 
     recorderManager.onError((err: any) => {
@@ -692,29 +747,26 @@ Page({
       return
     }
 
-    const language = wx.getStorageSync('language') || 'en'
-    wx.authorize({
-      scope: 'scope.record',
-      success: () => {
-        console.log('[Listening Selection] Recording authorized')
-        this.recorderManager.start({
-          duration: 8000,
-          format: 'mp3',
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          encodeBitRate: 48000,
-          frameSize: 50
-        })
-      },
-      fail: () => {
-        console.error('[Listening Selection] Recording authorization denied')
-        wx.showToast({ title: language === 'zh' ? '需要录音权限' : 'Permission required', icon: 'none' })
-      }
+    this.recordingStopped = false
+    this.recorderManager.start({
+      duration: PRACTICE_RULES.listening.recordingSeconds * 1000,
+      format: 'mp3',
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      encodeBitRate: 48000,
+      frameSize: 50,
     })
   },
 
   stopRecording() {
-    if (this.recorderManager) this.recorderManager.stop()
+    if (!this.recorderManager || this.recordingStopped) return
+    this.recordingStopped = true
+    this.recorderManager.stop()
+  },
+
+  onEarlyStopRecording() {
+    this.setData({ showRecordingTimer: false })
+    this.stopRecording()
   },
 
   playAudio(audioUrl: string, onEnded?: () => void) {
@@ -727,8 +779,12 @@ Page({
         const innerAudioContext = wx.createInnerAudioContext()
         this.innerAudioContext = innerAudioContext
         innerAudioContext.src = response.url
-        innerAudioContext.onCanplay(() => { wx.hideLoading() })
-        innerAudioContext.onPlay(() => { console.log('[Listening Selection] Audio playing') })
+        innerAudioContext.onCanplay(() => {
+          wx.hideLoading()
+        })
+        innerAudioContext.onPlay(() => {
+          console.log('[Listening Selection] Audio playing')
+        })
         innerAudioContext.onEnded(() => {
           console.log('[Listening Selection] Audio ended')
           if (onEnded) onEnded()
@@ -741,7 +797,9 @@ Page({
             title: language === 'zh' ? '错误' : 'Error',
             content: language === 'zh' ? '音频播放失败' : 'Playback failed',
             showCancel: false,
-            success: () => { wx.navigateBack() }
+            success: () => {
+              wx.navigateBack()
+            },
           })
         })
         innerAudioContext.play()
@@ -754,7 +812,9 @@ Page({
           title: language === 'zh' ? '错误' : 'Error',
           content: language === 'zh' ? '获取音频链接失败' : 'Failed to get audio URL',
           showCancel: false,
-          success: () => { wx.navigateBack() }
+          success: () => {
+            wx.navigateBack()
+          },
         })
       })
   },
@@ -796,5 +856,5 @@ Page({
     this.setData({ showRecordingTimer: false })
     this.stopRecording()
     // 注意：不在这里调用 onRecordingFinish，而是等 handleRecordingComplete 成功后调用
-  }
+  },
 })

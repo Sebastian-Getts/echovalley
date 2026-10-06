@@ -11,10 +11,10 @@ Page({
   data: {
     questionId: 0,
     sessionId: 0,
+    examId: 0,
     // 旁白3
     prefaceText: '',
     prefaceAudioUrl: '',
-    prefaceDuration: 5,
     // 问题
     questions: [] as Array<{ content: string; audio_url: string }>,
     // UI
@@ -35,13 +35,14 @@ Page({
 
     const questionId = options.questionId ? parseInt(options.questionId, 10) : 0
     const sessionId = options.sessionId ? parseInt(options.sessionId, 10) : 0
+    const examId = options.examId ? parseInt(options.examId, 10) : 0
     if (!questionId) {
       wx.showToast({ title: '题目ID无效', icon: 'none' })
       setTimeout(() => { wx.navigateBack() }, 1500)
       return
     }
 
-    this.setData({ questionId, sessionId })
+    this.setData({ questionId, sessionId, examId })
     this.loadLanguage()
     this.loadQuestionDetail()
   },
@@ -149,7 +150,7 @@ Page({
     this.setData({ showPrefaceTimer: false })
     // 旁白播放完成，跳转到第一小题
     wx.redirectTo({
-      url: `/pages/passage-retelling-question-1/passage-retelling-question-1?questionId=${this.data.questionId}&sessionId=${this.data.sessionId}`
+      url: `/pages/passage-retelling-question-1/passage-retelling-question-1?questionId=${this.data.questionId}&sessionId=${this.data.sessionId}&examId=${this.data.examId}`
     })
   },
 

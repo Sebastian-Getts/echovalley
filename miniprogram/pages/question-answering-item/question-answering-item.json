@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "回答问题",
-  "usingComponents": {}
+  "usingComponents": {
+    "countdown-timer": "/components/countdown-timer/countdown-timer"
+  }
 }
-
