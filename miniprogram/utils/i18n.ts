@@ -33,7 +33,15 @@ export const translations = {
       stageTest: 'Stage Test',
       mockExam: 'Mock Exam',
       setsAvailable: 'sets available',
-      enterTest: 'Enter'
+      enterTest: 'Enter',
+      resultReleased: 'Exam Result',
+      resultSubmitted: 'Submission',
+      resultLoadFailed: 'Failed to load result',
+      examInfoMissing: 'Exam information is missing',
+      feedbackLabel: 'Teacher feedback',
+      fullScore: 'Total score',
+      scoreUnit: 'points',
+      backToList: 'Back to exam list'
     },
     profile: {
       title: 'Profile',
@@ -112,7 +120,15 @@ export const translations = {
       stageTest: '阶段测试',
       mockExam: '综合模拟',
       setsAvailable: '套题',
-      enterTest: '进入'
+      enterTest: '进入',
+      resultReleased: '考试成绩',
+      resultSubmitted: '已交卷',
+      resultLoadFailed: '加载成绩失败，请稍后重试',
+      examInfoMissing: '考试信息缺失',
+      feedbackLabel: '教师评语',
+      fullScore: '总分',
+      scoreUnit: '分',
+      backToList: '返回考试列表'
     },
     profile: {
       title: '我的',

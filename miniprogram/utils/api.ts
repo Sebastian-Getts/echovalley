@@ -256,6 +256,25 @@ export function completeExamSession(examId: number, sessionId: number) {
   })
 }
 
+export interface ExamResult {
+  session_id: number
+  submitted_at: string | null
+  // grading_status: 0=未评分 1=评分中 2=评分完成(未发布) 3=已发布 4=已撤回
+  grading_status: number
+  is_released: boolean
+  paper_name?: string | null
+  total_score: number | null
+  paper_total_score: number
+  overall_feedback: string | null
+  released_at: string | null
+}
+
+export function getExamResult(examId: number) {
+  return request<ExamResult>({
+    url: `/miniprogram/exam/${examId}/result`,
+  })
+}
+
 /**
  * 获取题目详情
  */
