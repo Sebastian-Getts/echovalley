@@ -1,0 +1,45 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state">加载中...</view>
+
+  <block wx:elif="{{error}}">
+    <view class="state">
+      <view class="error-text">{{error}}</view>
+      <button class="btn-secondary" bindtap="onStart">重试</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <view class="title">{{title}}</view>
+      <view class="meta">
+        <view class="meta-row">
+          <text class="meta-label">预计耗时</text>
+          <text class="meta-value">{{totalText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">流程概览</view>
+      <view class="phase-row" wx:for="{{phaseRows}}" wx:key="label">
+        <view class="phase-label">{{item.label}}</view>
+        <view class="phase-detail">{{item.detail}}</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">已提交情况</view>
+      <view wx:if="{{hasSubmitted}}" class="history-text">
+        你之前提交过 {{submittedCount}} / {{requiredCount}} 段录音。
+      </view>
+      <view wx:else class="history-text">
+        尚未提交过本练习。
+      </view>
+    </view>
+
+    <view class="actions">
+      <button class="btn-primary" bindtap="onStart">{{hasSubmitted ? '继续' : '开始'}}</button>
+      <button wx:if="{{hasSubmitted}}" class="btn-secondary" bindtap="onReset">重新练习</button>
+    </view>
+  </block>
+</view>

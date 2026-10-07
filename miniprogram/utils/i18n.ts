@@ -25,7 +25,8 @@ export const translations = {
       searchPlaceholder: 'Search questions...',
       noQuestions: 'No questions found',
       loading: 'Loading...',
-      difficulty: 'Difficulty'
+      difficulty: 'Difficulty',
+      overviewTitle: 'Overview'
     },
     exam: {
       title: 'Exam',
@@ -112,7 +113,8 @@ export const translations = {
       searchPlaceholder: '搜索题目...',
       noQuestions: '暂无题目',
       loading: '加载中...',
-      difficulty: '难度'
+      difficulty: '难度',
+      overviewTitle: '答题概览'
     },
     exam: {
       title: '考试',

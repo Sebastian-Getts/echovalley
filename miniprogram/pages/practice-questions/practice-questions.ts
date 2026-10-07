@@ -254,28 +254,28 @@ Page({
   onQuestionTap(e: any) {
     const questionId = e.currentTarget.dataset.id
     const question = this.data.questions.find(q => q.id === questionId)
-    
-    if (question) {
-      // 根据模块类型跳转到不同的页面
-      const typeCode = this.data.typeCode
-      let targetPage = ''
-      
-      if (typeCode === 'imitation_reading') {
-        targetPage = '/pages/imitation-reading/imitation-reading'
-      } else if (typeCode === 'listening_selection') {
-        targetPage = '/pages/listening-selection/listening-selection'
-      } else if (typeCode === 'question_answering') {
-        targetPage = '/pages/question-answering/question-answering'
-      } else if (typeCode === 'passage_retelling') {
-        targetPage = '/pages/passage-retelling/passage-retelling'
-      } else {
-        // 默认跳转到模仿朗读页面（兼容旧逻辑）
-        targetPage = '/pages/imitation-reading/imitation-reading'
-      }
-      
+
+    if (!question) return
+
+    // 先进入答题前概览页：展示题型 / 预计耗时 / 流程 / 是否已提交，
+    // 由概览页决定「开始」还是「继续 / 重新练习」，再跳转到具体题型页。
+    const typeCode = this.data.typeCode
+    const knownTypes = [
+      'imitation_reading',
+      'listening_selection',
+      'question_answering',
+      'passage_retelling',
+    ]
+    if (!knownTypes.includes(typeCode)) {
+      // 兼容旧逻辑：未知模块类型直接进模仿朗读
       wx.navigateTo({
-        url: `${targetPage}?questionId=${questionId}`
+        url: `/pages/imitation-reading/imitation-reading?questionId=${questionId}`,
       })
+      return
     }
+
+    wx.navigateTo({
+      url: `/pages/practice-overview/practice-overview?questionId=${questionId}&typeCode=${encodeURIComponent(typeCode)}`,
+    })
   }
 })
