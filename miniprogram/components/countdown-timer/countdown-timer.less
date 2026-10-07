@@ -62,6 +62,13 @@
   border: 4rpx solid #ef4444;
 }
 
+/* 播放/阅题/准备阶段：纯状态指示，不做成可按的实心按钮 */
+.timer-button-status {
+  background: #fff;
+  border: 4rpx solid #cbd5e1;
+  box-shadow: none;
+}
+
 .stop-icon {
   width: 28rpx;
   height: 28rpx;
@@ -77,21 +84,28 @@
   justify-content: center;
 }
 
-/* 暂停图标：两条竖线 */
-.pause-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  width: 40rpx;
-  height: 40rpx;
+/* 状态脉动圆点：表示"正在进行中，不可暂停/跳过" */
+.status-pulse {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background-color: #4a90e2;
+  animation: status-pulse 1.4s ease-in-out infinite;
 }
 
-.pause-bar {
-  width: 10rpx;
-  height: 36rpx;
-  background-color: #fff;
-  border-radius: 2rpx;
+@keyframes status-pulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
 }
 
 .timer-text {

@@ -6,14 +6,15 @@
       <!-- 中间的白色圆，形成圆环效果 -->
       <view class="timer-progress-inner"></view>
     </view>
-    <!-- 播放按钮：实心蓝色圆形 + 白色播放图标 -->
-    <view class="timer-button {{allowEarlyStop ? 'timer-button-recording' : ''}}" bindtap="onControlTap">
+    <!--
+      录音阶段（allowEarlyStop=true）：红色停止按钮，可点击提前结束。
+      播放/阅题/准备阶段（allowEarlyStop=false）：纯状态动画（脉动圆点），
+      不显示"暂停"图标，避免学生误以为可以暂停或跳过。
+    -->
+    <view class="timer-button {{allowEarlyStop ? 'timer-button-recording' : 'timer-button-status'}}" bindtap="onControlTap">
       <view class="timer-button-inner">
         <view class="stop-icon" wx:if="{{allowEarlyStop}}"></view>
-        <view class="pause-icon" wx:else>
-          <view class="pause-bar"></view>
-          <view class="pause-bar"></view>
-        </view>
+        <view class="status-pulse" wx:else></view>
       </view>
     </view>
   </view>
