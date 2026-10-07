@@ -5,7 +5,13 @@ import {
   findMissingPracticeResources,
   showPracticeResourceError,
 } from '../../utils/practice-rules'
-import { ensureRecordPermission, playRecordingCue } from '../../utils/recording-flow'
+import {
+  ensureRecordPermission,
+  playRecordingCue,
+  savePhaseSnapshot,
+  loadPhaseSnapshot,
+  clearPhaseSnapshot,
+} from '../../utils/recording-flow'
 import { finishExamQuestion } from '../../utils/exam-flow'
 import {
   getQuestionDetail,
@@ -80,6 +86,62 @@ Page({
   onUnload() {
     this.cleanupAudio()
     this.cleanupRecorder()
+  },
+
+  onHide() {
+    // P2-2: persist the current phase so the student can resume later
+    // instead of restarting from phase 1 after the page is hidden.
+    savePhaseSnapshot(
+      'imitation',
+      this.data.questionId,
+      this.data.sessionId,
+      this.data.currentPhase,
+      this.data.uploadedCount || 0,
+    )
+    // Cut the recording snapshot if mid-recording — the student will be
+    // offered a fresh start from the last persisted phase.
+    if (this.data.currentPhase === 4 && this.recorderManager) {
+      try {
+        this.recorderManager.stop()
+      } catch (e) {
+        // ignore — recorder might already be torn down
+      }
+    }
+  },
+
+  onShow() {
+    // P2-2: surface the persisted snapshot. The student can decide to
+    // continue from the saved phase or restart.
+    const snapshot = loadPhaseSnapshot(
+      'imitation',
+      this.data.questionId,
+      this.data.sessionId,
+    )
+    if (!snapshot) return
+    if (snapshot.currentPhase <= 1) return  // nothing useful yet
+    if (snapshot.currentPhase >= 4) return  // already submitted
+    const language = wx.getStorageSync('language') || 'en'
+    const title = language === 'zh' ? '检测到上一次的进度' : 'Resume previous progress?'
+    const content = language === 'zh'
+      ? `上次进行到第 ${snapshot.currentPhase} 阶段，是否继续？\n选"否"将从头开始。`
+      : `You were at phase ${snapshot.currentPhase}. Continue?\nChoosing "No" restarts from phase 1.`
+    wx.showModal({
+      title,
+      content,
+      confirmText: language === 'zh' ? '继续' : 'Continue',
+      cancelText: language === 'zh' ? '从头开始' : 'Restart',
+      success: modal => {
+        if (modal.confirm) {
+          this.setData({ currentPhase: snapshot.currentPhase })
+        } else {
+          clearPhaseSnapshot(
+            'imitation',
+            this.data.questionId,
+            this.data.sessionId,
+          )
+        }
+      },
+    })
   },
 
   loadLanguage() {
@@ -266,6 +328,7 @@ Page({
     console.log('[Imitation Reading] Phase 1 finished, starting phase 2')
     this.cleanupAudio()
     this.setData({ currentPhase: 2, showPhase1Timer: false, showPhase2Timer: true })
+    savePhaseSnapshot('imitation', this.data.questionId, this.data.sessionId, 2, 0)
     setTimeout(() => {
       const timer = this.selectComponent('#phase2Timer')
       if (timer) {
@@ -300,6 +363,7 @@ Page({
       duration: 1500,
     })
     this.setData({ currentPhase: 3, showPhase2Timer: false, showPhase3Timer: true })
+    savePhaseSnapshot('imitation', this.data.questionId, this.data.sessionId, 3, 0)
     setTimeout(() => {
       const timer = this.selectComponent('#phase3Timer')
       if (timer) timer.startTimer()
@@ -316,6 +380,7 @@ Page({
       duration: 1500,
     })
     this.setData({ currentPhase: 4, showPhase3Timer: false, showPhase4Timer: true })
+    savePhaseSnapshot('imitation', this.data.questionId, this.data.sessionId, 4, 0)
     setTimeout(async () => {
       const timer = this.selectComponent('#phase4Timer')
       if (timer) {
@@ -381,6 +446,12 @@ Page({
           icon: 'success',
           duration: 2000,
         })
+        // P2-2: the upload + submit is complete, no need to offer resume.
+        clearPhaseSnapshot(
+          'imitation',
+          this.data.questionId,
+          this.data.sessionId,
+        )
         this.setData({ submitting: false, completing: true })
         // 3. 标记 session 完成
         return this.data.examId

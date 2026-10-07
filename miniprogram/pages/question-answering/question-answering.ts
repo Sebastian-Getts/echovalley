@@ -5,7 +5,12 @@ import {
   findMissingPracticeResources,
   showPracticeResourceError,
 } from '../../utils/practice-rules'
-import { ensureRecordPermission } from '../../utils/recording-flow'
+import {
+  ensureRecordPermission,
+  savePhaseSnapshot,
+  loadPhaseSnapshot,
+  clearPhaseSnapshot,
+} from '../../utils/recording-flow'
 import {
   getQuestionDetail,
   getPresignedAudioUrl,
@@ -65,6 +70,53 @@ Page({
 
   onUnload() {
     this.cleanupAudio()
+  },
+
+  onHide() {
+    // P2-2: persist phase snapshot for resume after backgrounding.
+    savePhaseSnapshot(
+      'answering',
+      this.data.questionId,
+      this.data.sessionId,
+      this.data.currentPhase,
+      this.data.uploadedCount || 0,
+    )
+    if (this.data.isRecording && this.recorderManager) {
+      try {
+        this.recorderManager.stop()
+      } catch (e) {
+        // ignore
+      }
+    }
+  },
+
+  onShow() {
+    const snapshot = loadPhaseSnapshot(
+      'answering',
+      this.data.questionId,
+      this.data.sessionId,
+    )
+    if (!snapshot || snapshot.currentPhase <= 1) return
+    const language = wx.getStorageSync('language') || 'en'
+    const title = language === 'zh' ? '检测到上一次的进度' : 'Resume previous progress?'
+    const content = language === 'zh'
+      ? '上次进行了一半，是否继续？\n选"否"将从头开始。'
+      : 'You were in the middle. Continue?\nChoosing "No" restarts from the top.'
+    wx.showModal({
+      title,
+      content,
+      confirmText: language === 'zh' ? '继续' : 'Continue',
+      cancelText: language === 'zh' ? '从头开始' : 'Restart',
+      success: modal => {
+        if (!modal.confirm) {
+          clearPhaseSnapshot(
+            'answering',
+            this.data.questionId,
+            this.data.sessionId,
+          )
+        }
+      },
+    })
   },
 
   loadLanguage() {

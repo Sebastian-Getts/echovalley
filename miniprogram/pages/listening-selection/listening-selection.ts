@@ -5,7 +5,13 @@ import {
   findMissingPracticeResources,
   showPracticeResourceError,
 } from '../../utils/practice-rules'
-import { ensureRecordPermission, playRecordingCue } from '../../utils/recording-flow'
+import {
+  ensureRecordPermission,
+  playRecordingCue,
+  savePhaseSnapshot,
+  loadPhaseSnapshot,
+  clearPhaseSnapshot,
+} from '../../utils/recording-flow'
 import { finishExamQuestion } from '../../utils/exam-flow'
 import {
   getQuestionDetail,
@@ -94,6 +100,58 @@ Page({
   onUnload() {
     this.cleanupAudio()
     this.cleanupRecorder()
+  },
+
+  onHide() {
+    // P2-2: persist the current phase so the student can resume after
+    // coming back from a phone call or backgrounding the app.
+    savePhaseSnapshot(
+      'listening',
+      this.data.questionId,
+      this.data.sessionId,
+      this.data.currentPhase,
+      this.data.uploadedCount || 0,
+    )
+    // If we were mid-recording, abort cleanly — never resume mid-recording.
+    if (this.data.isRecording && this.recorderManager) {
+      try {
+        this.recorderManager.stop()
+      } catch (e) {
+        // ignore
+      }
+    }
+  },
+
+  onShow() {
+    // P2-2: surface a resume prompt if we have a saved snapshot.
+    const snapshot = loadPhaseSnapshot(
+      'listening',
+      this.data.questionId,
+      this.data.sessionId,
+    )
+    if (!snapshot) return
+    if (snapshot.currentPhase <= 0) return
+    if (snapshot.currentPhase >= 100) return  // already completed
+    const language = wx.getStorageSync('language') || 'en'
+    const title = language === 'zh' ? '检测到上一次的进度' : 'Resume previous progress?'
+    const content = language === 'zh'
+      ? '上次进行了一半，是否继续？\n选"否"将从头开始。'
+      : 'You were in the middle of a question. Continue?\nChoosing "No" restarts from the top.'
+    wx.showModal({
+      title,
+      content,
+      confirmText: language === 'zh' ? '继续' : 'Continue',
+      cancelText: language === 'zh' ? '从头开始' : 'Restart',
+      success: modal => {
+        if (!modal.confirm) {
+          clearPhaseSnapshot(
+            'listening',
+            this.data.questionId,
+            this.data.sessionId,
+          )
+        }
+      },
+    })
   },
 
   loadLanguage() {
@@ -649,6 +707,13 @@ Page({
       icon: 'success',
       duration: 2000,
     })
+
+    // P2-2: question is fully submitted; no need to offer resume.
+    clearPhaseSnapshot(
+      'listening',
+      this.data.questionId,
+      this.data.sessionId,
+    )
 
     // 标记 session 完成
     const completion = this.data.examId
