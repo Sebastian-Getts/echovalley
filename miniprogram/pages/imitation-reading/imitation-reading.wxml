@@ -20,6 +20,7 @@
     id="phase1Timer"
     duration="{{phase1Duration}}"
     label="题目说明"
+    phase="playback"
     bind:finish="onAudioTimerVisualFinish"
   wx:if="{{showPhase1Timer}}"
   />
@@ -29,6 +30,7 @@
     id="phase2Timer"
     duration="{{phase2Duration}}"
     label="播放录音"
+    phase="playback"
     bind:finish="onAudioTimerVisualFinish"
   wx:if="{{showPhase2Timer}}"
   />
@@ -38,6 +40,7 @@
     id="phase3Timer"
     duration="{{phase3Duration}}"
     label="准备朗读"
+    phase="preparation"
     bind:finish="onPhase3Finish"
   wx:if="{{showPhase3Timer}}"
   />
@@ -47,6 +50,7 @@
     id="phase4Timer"
     duration="{{phase4Duration}}"
     label="开始录音"
+    phase="recording"
     allowEarlyStop="{{true}}"
     bind:finish="onPhase4Finish"
     bind:earlystop="onEarlyStopRecording"

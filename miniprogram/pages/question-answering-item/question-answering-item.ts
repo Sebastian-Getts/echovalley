@@ -36,7 +36,7 @@ Page({
   recordingStopped: false,
 
   onLoad(options: any) {
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -258,7 +258,7 @@ Page({
     wx.showLoading({ title: '上传中...', mask: true })
     this.setData({ submitting: true, submitFailed: false })
 
-    const studentDbId = wx.getStorageSync('studentDbId') || 0
+    const studentDbId = getEnvironmentStorage('studentDbId') || 0
 
     uploadAudio(tempFilePath, this.data.questionId)
       .then((uploadRes: any) => {
@@ -353,3 +353,4 @@ Page({
     if (this.recorderManager) this.recorderManager.stop()
   },
 })
+import { getEnvironmentStorage } from '../../utils/environment'

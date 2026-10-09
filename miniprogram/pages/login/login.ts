@@ -1,17 +1,25 @@
 // login.ts
 import { getTranslation } from '../../utils/i18n'
 import { studentLogin, ApiError } from '../../utils/api'
+import {
+  clearCurrentEnvironmentAuth,
+  getBackendEnvironment,
+  getEnvironmentStorage,
+  selectEnvironmentForLogin,
+  setEnvironmentStorage,
+} from '../../utils/environment'
 
 Page({
   data: {
     username: '',
     password: '',
-    lang: {} as any
+    lang: {} as any,
+    isDevelopment: getBackendEnvironment() === 'development'
   },
 
   onLoad() {
     // 检查是否已登录
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (isLoggedIn) {
       wx.switchTab({
         url: '/pages/practice/practice'
@@ -65,6 +73,12 @@ Page({
       return
     }
 
+    // 正式版中测试账号自动进入开发环境，普通账号自动进入正式环境；
+    // 开发者工具和体验版始终使用开发环境。
+    const environment = selectEnvironmentForLogin(username)
+    clearCurrentEnvironmentAuth()
+    this.setData({ isDevelopment: environment === 'development' })
+
     // 显示加载遮罩层
     wx.showLoading({
       title: lang.loggingIn,
@@ -76,12 +90,12 @@ Page({
       .then((result) => {
         if (result.success) {
           // 登录成功，保存登录状态和用户信息
-          wx.setStorageSync('isLoggedIn', true)
-          wx.setStorageSync('username', result.name || username.trim())
-          wx.setStorageSync('studentId', result.student_id || '')
-          wx.setStorageSync('studentDbId', result.student_db_id || 0)
+          setEnvironmentStorage('isLoggedIn', true)
+          setEnvironmentStorage('username', result.name || username.trim())
+          setEnvironmentStorage('studentId', result.student_id || '')
+          setEnvironmentStorage('studentDbId', result.student_db_id || 0)
           if (result.token) {
-            wx.setStorageSync('token', result.token)
+            setEnvironmentStorage('token', result.token)
           }
           
           wx.hideLoading()
@@ -131,4 +145,3 @@ Page({
       })
   }
 })
-

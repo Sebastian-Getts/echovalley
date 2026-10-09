@@ -1,5 +1,6 @@
 // passage-retelling.ts
 import { getTranslation } from '../../utils/i18n'
+import { getEnvironmentStorage } from '../../utils/environment'
 import {
   PRACTICE_RULES,
   findMissingPracticeResources,
@@ -67,7 +68,7 @@ Page({
   onLoad(options: any) {
     this.initRecorder()
 
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -189,7 +190,7 @@ Page({
 
         // 获取旁白3个item (从 t_question_types 获取)
         const prefaceItems = question.preface_items || []
-        const questions = question.content_json?.questions || []
+        const questions = (question.content_json && question.content_json.questions) || []
 
         const missing = findMissingPracticeResources([
           { label: '题目主题', value: theme },
@@ -199,13 +200,13 @@ Page({
           { label: '思维导图', value: imgUrl },
           {
             label: '三段固定说明音频',
-            value: prefaceItems.length >= 3 && prefaceItems.slice(0, 3).every((item: any) => item?.audio_url),
+            value: prefaceItems.length >= 3 && prefaceItems.slice(0, 3).every((item: any) => item && item.audio_url),
           },
           {
             label: '两个提问提示',
             value:
               questions.length === PRACTICE_RULES.retelling.questionCount &&
-              questions.every((item: any) => item?.content),
+              questions.every((item: any) => item && item.content),
           },
         ])
         if (missing.length > 0) {
@@ -324,9 +325,9 @@ Page({
     const language = wx.getStorageSync('language') || 'en'
 
     // 计算总时长：旁白1 + theme + 旁白2
-    const preface1Duration = prefaceItems[0]?.duration || 5
+    const preface1Duration = (prefaceItems[0] && prefaceItems[0].duration) || 5
     const actualThemeDuration = themeDuration || 3
-    const preface2Duration = prefaceItems[1]?.duration || 5
+    const preface2Duration = (prefaceItems[1] && prefaceItems[1].duration) || 5
     const totalDuration = preface1Duration + actualThemeDuration + preface2Duration
 
     this.setData({
@@ -545,7 +546,7 @@ Page({
   handleRecordingComplete(tempFilePath: string, duration: number) {
     if (!tempFilePath || this.data.submitting) return
     const language = wx.getStorageSync('language') || 'en'
-    const studentDbId = wx.getStorageSync('studentDbId') || 0
+    const studentDbId = getEnvironmentStorage('studentDbId') || 0
     this.setData({ submitting: true })
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
 

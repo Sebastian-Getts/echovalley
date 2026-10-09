@@ -1,6 +1,7 @@
 <!--login.wxml-->
 <view class="login-container">
   <view class="login-box">
+    <view wx:if="{{isDevelopment}}" class="environment-banner">测试环境 · 数据与正式环境隔离</view>
     <view class="title">{{lang.welcome}}</view>
     <view class="subtitle">{{lang.subtitle}}</view>
     
@@ -29,4 +30,3 @@
     <button class="login-button" bindtap="onLogin">{{lang.loginButton}}</button>
   </view>
 </view>
-

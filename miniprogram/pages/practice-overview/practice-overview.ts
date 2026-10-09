@@ -158,7 +158,7 @@ Page({
   } as PageData,
 
   onLoad(options: any) {
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -201,7 +201,7 @@ Page({
       const language = wx.getStorageSync('language') || 'en'
       const lang = getTranslation(language)
       wx.setNavigationBarTitle({
-        title: (lang.practice as any)?.overviewTitle ||
+        title: ((lang.practice as any) && (lang.practice as any).overviewTitle) ||
           (language === 'zh' ? '答题概览' : 'Overview'),
       })
 
@@ -228,7 +228,7 @@ Page({
         console.warn('[practice-overview] session lookup failed', e)
       }
     } catch (e: any) {
-      this.setData({ loading: false, error: e?.message || '加载失败' })
+      this.setData({ loading: false, error: (e && e.message) || '加载失败' })
     }
   },
 
@@ -286,3 +286,4 @@ Page({
     }
   },
 })
+import { getEnvironmentStorage } from '../../utils/environment'

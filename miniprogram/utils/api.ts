@@ -1,38 +1,18 @@
 // API工具函数
+import { getBackendEnvironment, getEnvironmentStorage } from './environment'
 // API baseURL 通过 pickApiBase() 按运行环境自动选择：
 //   * 微信小程序正式版（envVersion === 'release'）→ PROD_API_BASE
 //   * 开发版 / 体验版 / 微信开发者工具（develop / trial）→ DEV_API_BASE
 //
 // 调试覆盖（仅供开发人员使用，正式版不要让用户接触 wx.setStorageSync）：
-//   wx.setStorageSync('__apiBaseOverride', 'https://example.com/api/v1')
+//   wx.setStorageSync('__apiBaseOverride', 'https://guiyuantingshuo.top/api/v1')
 //   wx.removeStorageSync('__apiBaseOverride')
 //
-// 部署时务必把下面的两个常量里的 example.com 替换成实际域名
-// （微信平台要求 HTTPS，IP 是服务器的公网 IP，不是 localhost）。
-const PROD_API_BASE = 'https://example.com/api/v1'
-const DEV_API_BASE = 'https://example.com/api-dev/v1'
-const OVERRIDE_KEY = '__apiBaseOverride'
-
-function pickApiBase(): string {
-  // 调试覆盖优先；正式包不应再覆盖 owner-controlled storage。
-  try {
-    const override = wx.getStorageSync(OVERRIDE_KEY)
-    if (typeof override === 'string' && override.trim()) return override.trim()
-  } catch (e) {
-    // storage 不可用时不阻挠主路径
-  }
-
-  try {
-    const envVersion = wx.getAccountInfoSync().miniProgram.envVersion
-    if (envVersion === 'release') return PROD_API_BASE
-    return DEV_API_BASE
-  } catch (e) {
-    // getAccountInfoSync 在非微信 IDE 等场景抛错；兜底为开发 API
-    return DEV_API_BASE
-  }
+const PROD_API_BASE = 'https://guiyuantingshuo.top/api/v1'
+const DEV_API_BASE = 'https://guiyuantingshuo.top/api-dev/v1'
+function getApiBaseURL(): string {
+  return getBackendEnvironment() === 'production' ? PROD_API_BASE : DEV_API_BASE
 }
-
-const API_BASE_URL = pickApiBase()
 
 interface RequestOptions {
   url: string
@@ -101,13 +81,13 @@ function request<T = any>(options: RequestOptions): Promise<T> {
     }
     
     // 如果有token，添加到header
-    const token = wx.getStorageSync('token')
+    const token = getEnvironmentStorage('token')
     if (token) {
       defaultHeader['Authorization'] = `Bearer ${token}`
     }
     
     wx.request({
-      url: url.startsWith('http') ? url : `${API_BASE_URL}${url}`,
+      url: url.startsWith('http') ? url : `${getApiBaseURL()}${url}`,
       method: method as any,
       data: data,
       header: defaultHeader,
@@ -151,7 +131,7 @@ export function studentLogin(username: string, password: string) {
  */
 export function getPracticeModules() {
   console.log('[API] 调用 getPracticeModules, URL:', '/miniprogram/practice/modules')
-  const token = wx.getStorageSync('token')
+  const token = getEnvironmentStorage('token')
   console.log('[API] Token:', token ? '存在' : '不存在')
   
   return request<Array<{
@@ -392,9 +372,9 @@ export function completeSession(questionId: number) {
 export function uploadAudio(filePath: string, _questionId: number) {
   return new Promise<{ audio_url: string; object_name: string; size: number }>(
     (resolve, reject) => {
-      const token = wx.getStorageSync('token')
+      const token = getEnvironmentStorage('token')
       wx.uploadFile({
-        url: `${API_BASE_URL}/miniprogram/audio/upload`,
+        url: `${getApiBaseURL()}/miniprogram/audio/upload`,
         filePath: filePath,
         name: 'file',
         header: {

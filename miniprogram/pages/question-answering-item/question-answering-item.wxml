@@ -8,6 +8,7 @@
     <view class="question-content">
       <!-- 固定旁白文字 -->
       <view class="instruction-text">现在，你有15秒钟的时间阅读这四个问题。</view>
+      <view class="question-progress">第 {{questionIndex + 1}}/4 题</view>
 
       <!-- 当前题目（无题号） -->
       <view class="question-item" wx:if="{{currentQuestion}}">
@@ -21,6 +22,7 @@
     id="audioTimer"
     duration="{{currentAudioDuration}}"
     label="{{currentStepText}}"
+    phase="playback"
     bind:finish="onAudioTimerFinish"
     wx:if="{{showAudioTimer}}"
   />
@@ -30,6 +32,7 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    phase="recording"
     allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
     bind:earlystop="onEarlyStopRecording"

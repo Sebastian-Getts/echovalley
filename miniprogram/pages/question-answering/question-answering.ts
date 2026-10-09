@@ -1,5 +1,6 @@
 // question-answering.ts
 import { getTranslation } from '../../utils/i18n'
+import { getEnvironmentStorage } from '../../utils/environment'
 import {
   PRACTICE_RULES,
   findMissingPracticeResources,
@@ -46,7 +47,7 @@ Page({
   innerAudioContext: null as any,
 
   onLoad(options: any) {
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -155,8 +156,8 @@ Page({
         const prefaceDuration = prefaceItem.duration || 15
 
         // 获取短文音频（从 text 字段获取）
-        const passageAudioUrl = contentJson.text?.audio_url || ''
-        const passageDuration = contentJson.text?.duration || 15
+        const passageAudioUrl = (contentJson.text && contentJson.text.audio_url) || ''
+        const passageDuration = (contentJson.text && contentJson.text.duration) || 15
 
         this.setData({
           questionTitle: question.title || '',
@@ -176,7 +177,7 @@ Page({
             label: `${PRACTICE_RULES.answering.questionCount} 个问题及音频`,
             value:
               questions.length === PRACTICE_RULES.answering.questionCount &&
-              questions.every((item: any) => item?.content && item?.audio_url),
+              questions.every((item: any) => item && item.content && item.audio_url),
           },
         ])
         if (missing.length > 0) {

@@ -15,6 +15,11 @@ Component({
       type: Boolean,
       value: false,
     },
+    // playback | reading | preparation | recording | uploading
+    phase: {
+      type: String,
+      value: 'playback',
+    },
   },
 
   data: {

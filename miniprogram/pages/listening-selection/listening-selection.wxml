@@ -19,6 +19,7 @@
   <view class="content-wrapper dynamic-content" wx:if="{{showContent}}">
     <view class="section-header">
       <text class="section-title">二、听选信息（共{{maxScore}}分）</text>
+      <text class="section-progress" wx:if="{{currentGlobalQuestionIndex}}">第 {{currentDialogIndex + 1}} 段 · 第 {{currentGlobalQuestionIndex}}/6 题</text>
     </view>
 
     <!-- 旁白内容（带题目） -->
@@ -50,6 +51,7 @@
     id="audioTimer"
     duration="{{currentAudioDuration}}"
     label="{{currentStepText}}"
+    phase="playback"
     bind:finish="onAudioTimerFinish"
     wx:if="{{showAudioTimer}}"
   />
@@ -59,6 +61,7 @@
     id="readingTimer"
     duration="{{readingDuration}}"
     label="{{currentStepText}}"
+    phase="reading"
     bind:finish="onReadingTimerFinish"
     wx:if="{{showReadingTimer}}"
   />
@@ -68,6 +71,7 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    phase="recording"
     allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
     bind:earlystop="onEarlyStopRecording"

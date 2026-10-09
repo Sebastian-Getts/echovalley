@@ -1,5 +1,6 @@
 // listening-selection.ts
 import { getTranslation } from '../../utils/i18n'
+import { getEnvironmentStorage } from '../../utils/environment'
 import {
   PRACTICE_RULES,
   findMissingPracticeResources,
@@ -74,7 +75,7 @@ Page({
   onLoad(options: any) {
     this.initRecorder()
 
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -193,7 +194,7 @@ Page({
             label: `${PRACTICE_RULES.listening.dialogueCount + 1} 段固定说明音频`,
             value:
               prefaceItems.length === PRACTICE_RULES.listening.dialogueCount + 1 &&
-              prefaceItems.every((item: any) => item?.audio_url),
+              prefaceItems.every((item: any) => item && item.audio_url),
           },
           {
             label: `${PRACTICE_RULES.listening.dialogueCount} 段对话`,
@@ -201,16 +202,16 @@ Page({
           },
         ]
         dialogues.forEach((dialogue: any, dialogIndex: number) => {
-          const questions = dialogue?.questions || []
+          const questions = (dialogue && dialogue.questions) || []
           resourceChecks.push({
             label: `第 ${dialogIndex + 1} 段对话音频`,
-            value: dialogue?.text?.audio_url,
+            value: dialogue && dialogue.text && dialogue.text.audio_url,
           })
           resourceChecks.push({
             label: `第 ${dialogIndex + 1} 段的 ${PRACTICE_RULES.listening.questionsPerDialogue} 个问题及音频`,
             value:
               questions.length === PRACTICE_RULES.listening.questionsPerDialogue &&
-              questions.every((item: any) => item?.content && item?.audio_url),
+              questions.every((item: any) => item && item.content && item.audio_url),
           })
         })
         const missing = findMissingPracticeResources(resourceChecks)
@@ -512,7 +513,7 @@ Page({
     }
 
     const dialogData = dialogues[dialogIndex]
-    const dialogAudioUrl = dialogData.text?.audio_url
+    const dialogAudioUrl = dialogData.text && dialogData.text.audio_url
 
     if (!dialogAudioUrl) {
       wx.showModal({
@@ -528,7 +529,7 @@ Page({
       currentPhase: 20 + dialogIndex * 4,
       currentStepText: '正在播放信息',
       currentAudioDuration:
-        (dialogData.text?.duration || 5) * PRACTICE_RULES.listening.dialoguePlayCount,
+        ((dialogData.text && dialogData.text.duration) || 5) * PRACTICE_RULES.listening.dialoguePlayCount,
       showAudioTimer: true,
     })
 
@@ -558,7 +559,8 @@ Page({
 
   jumpToQuestionAnswering(dialogIndex: number, subIndex: number) {
     const prefaceItems = this.data.prefaceItems
-    const titleContent = prefaceItems[dialogIndex + 1]?.title_content || ''
+    const titleItem = prefaceItems[dialogIndex + 1]
+    const titleContent = (titleItem && titleItem.title_content) || ''
     wx.redirectTo({
       url: `/pages/question-answering-item/question-answering-item?questionId=${this.data.questionId}&dialogueIndex=${dialogIndex}&subIndex=${subIndex}&titleContent=${encodeURIComponent(titleContent)}&sessionId=${this.data.sessionId}`,
     })
@@ -743,7 +745,7 @@ Page({
     uploadAudio(tempFilePath, this.data.questionId)
       .then((uploadRes: any) => {
         console.log('[Listening Selection] Audio uploaded:', uploadRes)
-        const studentDbId = wx.getStorageSync('studentDbId') || 0
+        const studentDbId = getEnvironmentStorage('studentDbId') || 0
         return submitAnswer(studentDbId, {
           session_id: this.data.sessionId,
           question_id: this.data.questionId,

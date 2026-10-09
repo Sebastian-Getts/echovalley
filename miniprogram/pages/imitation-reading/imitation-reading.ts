@@ -1,5 +1,6 @@
 // imitation-reading.ts
 import { getTranslation } from '../../utils/i18n'
+import { getEnvironmentStorage } from '../../utils/environment'
 import {
   PRACTICE_RULES,
   findMissingPracticeResources,
@@ -59,7 +60,7 @@ Page({
     this.initRecorder()
 
     // 检查登录状态
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -423,7 +424,7 @@ Page({
   handleRecordingComplete(tempFilePath: string, duration: number) {
     if (!tempFilePath || this.data.submitting || this.data.completing) return
     const language = wx.getStorageSync('language') || 'en'
-    const studentDbId = wx.getStorageSync('studentDbId') || 0
+    const studentDbId = getEnvironmentStorage('studentDbId') || 0
     this.setData({ submitting: true })
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
 

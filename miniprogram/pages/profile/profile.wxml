@@ -1,5 +1,6 @@
 <!--profile.wxml-->
 <view class="profile-container">
+  <view wx:if="{{isDevelopment}}" class="environment-banner">测试环境 · 当前操作不会影响正式数据</view>
   <view class="content">
     <view class="user-info">
       <view class="user-icon">👤</view>
@@ -48,4 +49,3 @@
     </view>
   </view>
 </view>
-

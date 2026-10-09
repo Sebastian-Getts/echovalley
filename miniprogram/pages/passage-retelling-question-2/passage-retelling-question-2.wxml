@@ -1,5 +1,6 @@
 <!--passage-retelling-question-2.wxml-->
 <view class="passage-retelling-question-2-container">
+  <view class="question-progress">第二节 · 提问 第 2/2 题</view>
   <!-- 内容区域 -->
   <view class="content-wrapper" wx:if="{{showContent}}">
     <view class="section-header">
@@ -22,6 +23,7 @@
     id="prepareTimer"
     duration="{{prepareDuration}}"
     label="{{currentStepText}}"
+    phase="preparation"
     bind:finish="onPrepareTimerFinish"
     wx:if="{{showPrepareTimer}}"
   />
@@ -31,6 +33,7 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    phase="recording"
     allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
     bind:earlystop="onEarlyStopRecording"

@@ -1,17 +1,24 @@
 // profile.ts
 import { getTranslation } from '../../utils/i18n'
+import {
+  clearCurrentEnvironmentAuth,
+  getEnvironmentStorage,
+  isDevelopmentEnvironment,
+  restoreDefaultEnvironment,
+} from '../../utils/environment'
 
 Page({
   data: {
     username: '',
     businessModules: [] as any[],
     systemModules: [] as any[],
-    lang: {} as any
+    lang: {} as any,
+    isDevelopment: isDevelopmentEnvironment()
   },
 
   onLoad() {
     // 检查登录状态
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({
         url: '/pages/login/login'
@@ -19,7 +26,7 @@ Page({
       return
     }
 
-    const username = wx.getStorageSync('username') || ''
+    const username = getEnvironmentStorage('username') || ''
     this.setData({
       username
     })
@@ -100,8 +107,8 @@ Page({
       content: lang.logoutConfirm,
       success: (res) => {
         if (res.confirm) {
-          wx.removeStorageSync('isLoggedIn')
-          wx.removeStorageSync('username')
+          clearCurrentEnvironmentAuth()
+          restoreDefaultEnvironment()
           wx.redirectTo({
             url: '/pages/login/login'
           })
@@ -110,4 +117,3 @@ Page({
     })
   }
 })
-

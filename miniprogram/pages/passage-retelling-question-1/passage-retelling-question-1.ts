@@ -33,7 +33,7 @@ Page({
   onLoad(options: any) {
     this.initRecorder()
 
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -74,7 +74,8 @@ Page({
       .then((question: any) => {
         console.log('[Passage Retelling Q1] Question detail:', question)
 
-        const questionData = question.content_json?.questions?.[0] || { content: '', audio_url: '' }
+        const contentQuestions = question.content_json && question.content_json.questions
+        const questionData = (contentQuestions && contentQuestions[0]) || { content: '', audio_url: '' }
         // 旁白文字（旁白3的内容，不展示，因为标题已有"第二节 提问"）
         // 只获取第一题的题目内容，旁白文字不展示
 
@@ -171,7 +172,7 @@ Page({
     const duration = this.data.pendingDuration
     if (!tempFilePath || this.data.submitting) return
     const language = wx.getStorageSync('language') || 'en'
-    const studentDbId = wx.getStorageSync('studentDbId') || 0
+    const studentDbId = getEnvironmentStorage('studentDbId') || 0
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
     this.setData({ submitting: true, submitFailed: false })
 
@@ -245,3 +246,4 @@ Page({
     this.stopRecording()
   },
 })
+import { getEnvironmentStorage } from '../../utils/environment'

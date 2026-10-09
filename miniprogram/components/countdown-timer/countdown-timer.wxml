@@ -1,8 +1,8 @@
 <!--components/countdown-timer/countdown-timer.wxml-->
-<view class="countdown-timer-control">
+<view class="countdown-timer-control phase-{{phase}}">
   <view class="timer-button-container">
     <!-- 进度圆圈：使用 conic-gradient 实现平滑圆弧，从12点钟位置开始 -->
-    <view class="timer-progress-ring" style="background: conic-gradient(from 0deg at 50% 50%, #4A90E2 0%, #4A90E2 {{progressPercent}}%, transparent {{progressPercent}}%, transparent 100%);">
+    <view class="timer-progress-ring" style="--progress: {{progressPercent}}%;">
       <!-- 中间的白色圆，形成圆环效果 -->
       <view class="timer-progress-inner"></view>
     </view>

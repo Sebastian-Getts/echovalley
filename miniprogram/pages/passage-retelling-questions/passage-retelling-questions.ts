@@ -27,7 +27,7 @@ Page({
   innerAudioContext: null as any,
 
   onLoad(options: any) {
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -80,7 +80,7 @@ Page({
 
         // 获取两道小题
         let questions: Array<{ content: string; audio_url: string }> = []
-        if (question.content_json?.questions) {
+        if (question.content_json && question.content_json.questions) {
           questions = question.content_json.questions
         }
 
@@ -208,3 +208,4 @@ Page({
     console.log('[Passage Retelling Questions] Preface timer finished')
   }
 })
+import { getEnvironmentStorage } from '../../utils/environment'

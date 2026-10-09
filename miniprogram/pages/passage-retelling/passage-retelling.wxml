@@ -7,6 +7,7 @@
   <view class="content-wrapper" wx:if="{{showContent}}">
     <view class="section-header">
       <text class="section-title">四、短文复述及提问（共{{maxScore}}分）</text>
+      <text class="section-progress">第一节 · 短文复述</text>
     </view>
 
     <view class="question-content">
@@ -35,6 +36,7 @@
     id="audioTimer"
     duration="{{currentAudioDuration}}"
     label="{{currentStepText}}"
+    phase="playback"
     bind:finish="onAudioTimerFinish"
     wx:if="{{showAudioTimer}}"
   />
@@ -44,6 +46,7 @@
     id="readingTimer"
     duration="{{readingDuration}}"
     label="{{currentStepText}}"
+    phase="reading"
     bind:finish="onReadingTimerFinish"
     wx:if="{{showReadingTimer}}"
   />
@@ -53,6 +56,7 @@
     id="prepareTimer"
     duration="{{prepareDuration}}"
     label="{{currentStepText}}"
+    phase="preparation"
     bind:finish="onPrepareTimerFinish"
     wx:if="{{showPrepareTimer}}"
   />
@@ -62,6 +66,7 @@
     id="recordingTimer"
     duration="{{recordingDuration}}"
     label="{{currentStepText}}"
+    phase="recording"
     allowEarlyStop="{{true}}"
     bind:finish="onRecordingTimerFinish"
     bind:earlystop="onEarlyStopRecording"

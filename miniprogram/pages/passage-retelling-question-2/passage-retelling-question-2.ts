@@ -38,7 +38,7 @@ Page({
   onLoad(options: any) {
     this.initRecorder()
 
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({ url: '/pages/login/login' })
       return
@@ -79,7 +79,8 @@ Page({
       .then((question: any) => {
         console.log('[Passage Retelling Q2] Question detail:', question)
 
-        const questionData = question.content_json?.questions?.[1] || { content: '', audio_url: '' }
+        const contentQuestions = question.content_json && question.content_json.questions
+        const questionData = (contentQuestions && contentQuestions[1]) || { content: '', audio_url: '' }
 
         this.setData({
           question: questionData,
@@ -174,7 +175,7 @@ Page({
     const duration = this.data.pendingDuration
     if (!tempFilePath || this.data.submitting) return
     const language = wx.getStorageSync('language') || 'en'
-    const studentDbId = wx.getStorageSync('studentDbId') || 0
+    const studentDbId = getEnvironmentStorage('studentDbId') || 0
     wx.showLoading({ title: language === 'zh' ? '上传中...' : 'Uploading...', mask: true })
     this.setData({ submitting: true, submitFailed: false })
 
@@ -277,3 +278,4 @@ Page({
       })
   },
 })
+import { getEnvironmentStorage } from '../../utils/environment'

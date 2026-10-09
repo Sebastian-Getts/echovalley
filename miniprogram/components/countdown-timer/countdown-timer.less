@@ -28,7 +28,20 @@
   border-radius: 50%;
   z-index: 1;
   overflow: hidden;
+  background: conic-gradient(from 0deg at 50% 50%, var(--phase-color, #4a90e2) 0%, var(--phase-color, #4a90e2) var(--progress), transparent var(--progress), transparent 100%);
 }
+
+.phase-playback { --phase-color: #2563eb; }
+.phase-reading { --phase-color: #7c3aed; }
+.phase-preparation { --phase-color: #d97706; }
+.phase-recording { --phase-color: #ef4444; }
+.phase-uploading { --phase-color: #059669; }
+
+.phase-reading .status-pulse { border-radius: 5rpx; background: #7c3aed; }
+.phase-preparation .status-pulse { background: #d97706; animation-duration: .8s; }
+.phase-recording .timer-label,
+.phase-recording .timer-value { color: #b91c1c; }
+.phase-uploading .status-pulse { background: #059669; }
 
 .timer-progress-inner {
   position: absolute;

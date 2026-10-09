@@ -1,6 +1,7 @@
 // practice-questions.ts
 import { getTranslation } from '../../utils/i18n'
 import { getPracticeQuestions, ApiError } from '../../utils/api'
+import { getEnvironmentStorage } from '../../utils/environment'
 
 Page({
   data: {
@@ -16,7 +17,7 @@ Page({
 
   onLoad(options: any) {
     // 检查登录状态
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({
         url: '/pages/login/login'

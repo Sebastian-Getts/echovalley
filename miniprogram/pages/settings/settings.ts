@@ -1,5 +1,6 @@
 // settings.ts
 import { getTranslation } from '../../utils/i18n'
+import { getEnvironmentStorage } from '../../utils/environment'
 
 Page({
   data: {
@@ -9,7 +10,7 @@ Page({
 
   onLoad() {
     // 检查登录状态
-    const isLoggedIn = wx.getStorageSync('isLoggedIn')
+    const isLoggedIn = getEnvironmentStorage('isLoggedIn')
     if (!isLoggedIn) {
       wx.redirectTo({
         url: '/pages/login/login'
@@ -66,4 +67,3 @@ Page({
     })
   }
 })
-
